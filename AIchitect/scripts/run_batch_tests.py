@@ -12,7 +12,7 @@ if str(BASE_DIR) not in sys.path:
 from app.services.normalize_service import normalize_llm_json, validate_internal_format
 from app.services.rules_service import generate_placement_rules
 from app.services.layout_service import generate_layout_from_rules
-from app.services.visualize2d_service import render_layout_to_png
+from app.services.visualize2d_service import render_layout_to_svg
 
 
 EXAMPLES_PATH = BASE_DIR / "data" / "examples" / "sample_requests.json"
@@ -55,14 +55,14 @@ def main() -> None:
         order_path = ORDER_DIR / f"{case_id}.json"
         rules_path = RULES_DIR / f"{case_id}.json"
         layout_path = LAYOUT_DIR / f"{case_id}.json"
-        image_path = IMAGE_DIR / f"{case_id}.png"
+        image_path = IMAGE_DIR / f"{case_id}.svg"
 
         save_json(order_path, validated)
         save_json(rules_path, rules)
         save_json(layout_path, layout)
 
-        # 5) 2D 시각화
-        render_layout_to_png(layout, image_path)
+        # 5) SVG 시각화
+        render_layout_to_svg(layout, image_path)
 
         # 6) 요약 출력
         spaces = validated["occupancy"]["spaces"]
@@ -78,7 +78,7 @@ def main() -> None:
         print(f"  - layout 저장: {layout_path.name}")
         print(f"  - image 저장: {image_path.name}\n")
 
-    print("internal_order / placement_rules / layout / image 생성 완료")
+    print("internal_order / placement_rules / layout / svg 생성 완료")
 
 
 if __name__ == "__main__":
