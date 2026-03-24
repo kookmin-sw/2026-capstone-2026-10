@@ -1,0 +1,35 @@
+{
+    "id": "connector_M1",
+    "family": "connector",
+    "space_role_candidates": [
+        "corridor",
+        "buffer",
+        "transition"
+    ],
+    "width": 3,
+    "depth": 3,
+    "height": 3.0,
+    "zone": "public",
+    "rotatable": true,
+    "stackable": true,
+    "fixed_core": false,
+    "exterior_required": false,
+    "service_side": null,
+    "edges": {
+        "north": "connectable",
+        "south": "connectable",
+        "east": "connectable",
+        "west": "connectable"
+    },
+    "connectable_to_families": [
+        "entrance_circulation",
+        "vertical_core",
+        "open_public",
+        "private",
+        "work_flexible",
+        "wet_core"
+    ],
+    "interior_template_options": [
+        "corridor_basic"
+    ]
+}

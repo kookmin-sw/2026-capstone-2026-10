@@ -1,0 +1,32 @@
+{
+  "occupancy": {
+    "household_size": 5,
+    "building_type": "single_family_house",
+    "spaces": {
+      "bedroom": 3,
+      "living_room": 1,
+      "kitchen": 1,
+      "vertical_core": 1,
+      "connector": 1,
+      "bathroom": 2,
+      "workspace": 1
+    }
+  },
+  "relationship": [
+    {
+      "from": "kitchen",
+      "to": "living_room",
+      "type": "adjacent"
+    }
+  ],
+  "space_traits": {
+    "workspace": {
+      "noise_level": "low",
+      "privacy": "high"
+    },
+    "living_room": {
+      "daylight": "high",
+      "atmosphere": "bright"
+    }
+  }
+}

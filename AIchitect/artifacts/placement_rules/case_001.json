@@ -1,0 +1,50 @@
+{
+  "required_blocks": [
+    "entrance",
+    "living_room",
+    "kitchen",
+    "workspace",
+    "bedroom",
+    "bedroom",
+    "bedroom"
+  ],
+  "adjacency_preferences": [
+    {
+      "from": "kitchen",
+      "to": "living_room",
+      "score": 8
+    },
+    {
+      "from": "entrance",
+      "to": "living_room",
+      "score": 5
+    }
+  ],
+  "separation_preferences": [
+    {
+      "from": "bedroom",
+      "to": "public_zone",
+      "score": 5
+    },
+    {
+      "from": "workspace",
+      "to": "public_zone",
+      "score": 6
+    }
+  ],
+  "edge_preferences": {
+    "bedroom": "private_inner_zone",
+    "living_room": "outer_edge",
+    "workspace": "quiet_inner_zone"
+  },
+  "hard_constraints": [
+    "no_overlap",
+    "keep_window_edge_open",
+    "maintain_accessibility"
+  ],
+  "soft_constraints": [
+    "prefer_public_private_zoning",
+    "prefer_daylight_for_living_room",
+    "prefer_quiet_zone_for_workspace"
+  ]
+}

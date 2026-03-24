@@ -1,0 +1,26 @@
+{
+  "occupancy": {
+    "household_size": 4,
+    "building_type": "single_family_house",
+    "spaces": {
+      "bedroom": 3,
+      "living_room": 1,
+      "kitchen": 1,
+      "bathroom": 2
+    }
+  },
+  "relationship": [
+    {
+      "from": "kitchen",
+      "to": "living_room",
+      "type": "adjacent"
+    }
+  ],
+  "space_traits": {
+    "living_room": {
+      "daylight": "high",
+      "atmosphere": "bright"
+    },
+    "bathroom": {}
+  }
+}

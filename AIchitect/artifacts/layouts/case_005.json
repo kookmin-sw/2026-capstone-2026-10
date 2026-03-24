@@ -1,0 +1,79 @@
+{
+  "placements": [
+    {
+      "id": "entrance_0",
+      "space_type": "entrance",
+      "family": "entrance_circulation",
+      "fixed_core": true,
+      "band": "public",
+      "x": 0,
+      "y": 0,
+      "width": 3,
+      "depth": 3,
+      "height": 3,
+      "zone": "public"
+    },
+    {
+      "id": "living_room_1",
+      "space_type": "living_room",
+      "family": "open_public",
+      "fixed_core": false,
+      "band": "public",
+      "x": 3,
+      "y": 0,
+      "width": 6,
+      "depth": 6,
+      "height": 6,
+      "zone": "public"
+    },
+    {
+      "id": "kitchen_2",
+      "space_type": "kitchen",
+      "family": "wet_core",
+      "fixed_core": true,
+      "band": "public",
+      "x": 9,
+      "y": 0,
+      "width": 3,
+      "depth": 6,
+      "height": 6,
+      "zone": "public"
+    },
+    {
+      "id": "bedroom_3",
+      "space_type": "bedroom",
+      "family": "private",
+      "fixed_core": false,
+      "band": "private",
+      "x": 0,
+      "y": 22,
+      "width": 3,
+      "depth": 4,
+      "height": 4,
+      "zone": "private"
+    },
+    {
+      "id": "bedroom_4",
+      "space_type": "bedroom",
+      "family": "private",
+      "fixed_core": false,
+      "band": "private",
+      "x": 3,
+      "y": 22,
+      "width": 3,
+      "depth": 4,
+      "height": 4,
+      "zone": "private"
+    }
+  ],
+  "meta": {
+    "layout_type": "rule_based_v2_modular",
+    "bands": {
+      "public": 0,
+      "core": 8,
+      "connector": 14,
+      "private": 22,
+      "quiet": 30
+    }
+  }
+}

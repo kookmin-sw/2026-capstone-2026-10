@@ -1,0 +1,34 @@
+{
+    "id": "open_public_M1",
+    "family": "open_public",
+    "space_role_candidates": [
+        "living_room",
+        "family_room",
+        "dining"
+    ],
+    "width": 6,
+    "depth": 6,
+    "height": 3.0,
+    "zone": "public",
+    "rotatable": true,
+    "stackable": true,
+    "fixed_core": false,
+    "exterior_required": true,
+    "service_side": null,
+    "edges": {
+        "north": "connectable",
+        "south": "window_preferred",
+        "east": "connectable",
+        "west": "connectable"
+    },
+    "connectable_to_families": [
+        "entrance_circulation",
+        "open_public",
+        "wet_core",
+        "connector"
+    ],
+    "interior_template_options": [
+        "living_open",
+        "living_dining"
+    ]
+}

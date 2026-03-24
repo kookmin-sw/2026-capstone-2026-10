@@ -1,0 +1,85 @@
+{
+  "required_blocks": [
+    "entrance",
+    "living_room",
+    "kitchen",
+    "vertical_core",
+    "connector",
+    "workspace",
+    "bedroom",
+    "bedroom",
+    "bedroom",
+    "bathroom",
+    "bathroom"
+  ],
+  "adjacency_preferences": [
+    {
+      "from": "kitchen",
+      "to": "living_room",
+      "score": 8
+    },
+    {
+      "from": "entrance",
+      "to": "living_room",
+      "score": 5
+    },
+    {
+      "from": "vertical_core",
+      "to": "connector",
+      "score": 8
+    },
+    {
+      "from": "connector",
+      "to": "bedroom",
+      "score": 6
+    },
+    {
+      "from": "connector",
+      "to": "workspace",
+      "score": 6
+    },
+    {
+      "from": "bathroom",
+      "to": "bedroom",
+      "score": 7
+    }
+  ],
+  "separation_preferences": [
+    {
+      "from": "bedroom",
+      "to": "public_zone",
+      "score": 5
+    },
+    {
+      "from": "bathroom",
+      "to": "public_zone",
+      "score": 4
+    },
+    {
+      "from": "workspace",
+      "to": "public_zone",
+      "score": 6
+    }
+  ],
+  "edge_preferences": {
+    "bedroom": "private_inner_zone",
+    "living_room": "outer_edge",
+    "vertical_core": "core_zone",
+    "connector": "connector_zone",
+    "bathroom": "service_inner_zone",
+    "workspace": "quiet_inner_zone"
+  },
+  "hard_constraints": [
+    "no_overlap",
+    "keep_window_edge_open",
+    "maintain_accessibility"
+  ],
+  "soft_constraints": [
+    "prefer_public_private_zoning",
+    "prefer_daylight_for_living_room",
+    "prefer_quiet_zone_for_workspace",
+    "prefer_bathroom_near_private_zone",
+    "prefer_vertical_core_as_anchor",
+    "prefer_connector_between_public_and_private"
+  ]
+}
