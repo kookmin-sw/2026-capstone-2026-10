@@ -1,0 +1,37 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono&family=IBM+Plex+Sans:wght@400;600&display=swap');
+
+:root {
+  --primary-black: #000000;
+  --gray-500: #888888;
+  --bg-color: #ffffff;
+}
+
+body {
+  font-family: 'IBM Plex Sans', sans-serif;
+  background-color: var(--bg-color);
+  color: var(--primary-black);
+  margin: 0;
+}
+
+/* 타이포그래피 시스템 */
+.aichitect-headline-large {
+  font-size: 36px; line-height: 48px;
+  text-transform: uppercase; letter-spacing: 2px;
+}
+.aichitect-title-large {
+  font-size: 22px; line-height: 28px;
+  text-transform: uppercase;
+}
+.aichitect-body-large { font-size: 16px; line-height: 24px; }
+.aichitect-body-medium { font-size: 14px; line-height: 20px; color: var(--gray-500); }
+.aichitect-label-medium {
+  font-size: 16px; line-height: 20px;
+  text-transform: uppercase; letter-spacing: 1px;
+}
+
+/* 각진 그림자 시스템 */
+.angular-shadow-small { box-shadow: 2px 2px 0px 0px var(--primary-black); border: 1px solid var(--primary-black); }
+.angular-shadow-medium { box-shadow: 4px 4px 0px 0px var(--primary-black); border: 1px solid var(--primary-black); }
+
+/* 코드 전용 폰트 */
+.code-font { font-family: 'IBM Plex Mono', monospace; }
