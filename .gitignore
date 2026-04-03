@@ -1,0 +1,11 @@
+frontend_local_test/node_modules/
+frontend_local_test/dist/
+__pycache__/
+*.pyc
+*.pyo
+.env
+.venv/
+venv/
+artifacts/
+*.png
+*.jpg

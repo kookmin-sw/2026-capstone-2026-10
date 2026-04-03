@@ -1,0 +1,59 @@
+{
+    "adjacency_preferences": [
+        {
+            "from": "kitchen",
+            "to": "living_room",
+            "score": 8
+        },
+        {
+            "from": "entrance",
+            "to": "living_room",
+            "score": 5
+        },
+        {
+            "from": "vertical_core",
+            "to": "connector",
+            "score": 8
+        },
+        {
+            "from": "connector",
+            "to": "bedroom",
+            "score": 6
+        },
+        {
+            "from": "connector",
+            "to": "workspace",
+            "score": 6
+        },
+        {
+            "from": "bathroom",
+            "to": "bedroom",
+            "score": 7
+        }
+    ],
+    "separation_preferences": [
+        {
+            "from": "workspace",
+            "to": "public_zone",
+            "score": 6
+        },
+        {
+            "from": "bedroom",
+            "to": "public_zone",
+            "score": 5
+        },
+        {
+            "from": "bathroom",
+            "to": "public_zone",
+            "score": 4
+        }
+    ],
+    "edge_preferences": {
+        "living_room": "outer_edge",
+        "workspace": "quiet_inner_zone",
+        "bedroom": "private_inner_zone",
+        "bathroom": "service_inner_zone",
+        "vertical_core": "core_zone",
+        "connector": "connector_zone"
+    }
+}

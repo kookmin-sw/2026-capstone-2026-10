@@ -1,0 +1,74 @@
+{
+    "living_room": {
+        "zone": "public",
+        "default_count": 1,
+        "traits": {
+            "daylight_preferred": true,
+            "privacy_preferred": false,
+            "quiet_preferred": false
+        }
+    },
+    "kitchen": {
+        "zone": "public",
+        "default_count": 1,
+        "traits": {
+            "daylight_preferred": false,
+            "privacy_preferred": false,
+            "quiet_preferred": false
+        }
+    },
+    "bedroom": {
+        "zone": "private",
+        "default_count": 1,
+        "traits": {
+            "daylight_preferred": false,
+            "privacy_preferred": true,
+            "quiet_preferred": true
+        }
+    },
+    "workspace": {
+        "zone": "semi_private",
+        "default_count": 1,
+        "traits": {
+            "daylight_preferred": false,
+            "privacy_preferred": true,
+            "quiet_preferred": true
+        }
+    },
+    "entrance": {
+        "zone": "public",
+        "default_count": 1,
+        "traits": {
+            "daylight_preferred": false,
+            "privacy_preferred": false,
+            "quiet_preferred": false
+        }
+    },
+    "bathroom": {
+        "zone": "private",
+        "default_count": 1,
+        "traits": {
+            "daylight_preferred": false,
+            "privacy_preferred": true,
+            "quiet_preferred": false
+        }
+    },
+    "vertical_core": {
+        "zone": "public",
+        "default_count": 1,
+        "traits": {
+            "daylight_preferred": false,
+            "privacy_preferred": false,
+            "quiet_preferred": false
+        }
+    },
+    "connector": {
+        "zone": "public",
+        "default_count": 1,
+        "traits": {
+            "daylight_preferred": false,
+            "privacy_preferred": false,
+            "quiet_preferred": false
+        }
+    }
+}

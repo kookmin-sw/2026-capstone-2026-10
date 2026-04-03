@@ -1,0 +1,16 @@
+{
+    "grid_unit": 1,
+    "standard_widths": [
+        3,
+        6
+    ],
+    "standard_depths": [
+        3,
+        4,
+        6
+    ],
+    "floor_height": 3.0,
+    "wall_thickness": 0.2,
+    "structure_type": "modular_osc",
+    "notes": "비내력 내부 파티션은 후처리 단계에서 별도 삽입"
+}

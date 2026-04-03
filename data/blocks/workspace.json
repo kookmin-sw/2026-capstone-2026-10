@@ -1,0 +1,32 @@
+{
+    "id": "private_M1",
+    "family": "private",
+    "space_role_candidates": [
+        "bedroom",
+        "guest_room"
+    ],
+    "width": 3,
+    "depth": 4,
+    "height": 3.0,
+    "zone": "private",
+    "rotatable": true,
+    "stackable": true,
+    "fixed_core": false,
+    "exterior_required": true,
+    "service_side": null,
+    "edges": {
+        "north": "solid",
+        "south": "window_preferred",
+        "east": "connectable",
+        "west": "solid"
+    },
+    "connectable_to_families": [
+        "connector",
+        "private",
+        "wet_core"
+    ],
+    "interior_template_options": [
+        "bedroom_basic",
+        "bedroom_storage"
+    ]
+}

@@ -1,0 +1,30 @@
+{
+    "id": "entrance_core_S1",
+    "family": "entrance_circulation",
+    "space_role_candidates": [
+        "entrance"
+    ],
+    "width": 3,
+    "depth": 3,
+    "height": 3.0,
+    "zone": "public",
+    "rotatable": true,
+    "stackable": false,
+    "fixed_core": true,
+    "exterior_required": true,
+    "service_side": null,
+    "edges": {
+        "north": "entry",
+        "south": "connectable",
+        "east": "solid",
+        "west": "solid"
+    },
+    "connectable_to_families": [
+        "open_public",
+        "vertical_core",
+        "connector"
+    ],
+    "interior_template_options": [
+        "entrance_basic"
+    ]
+}

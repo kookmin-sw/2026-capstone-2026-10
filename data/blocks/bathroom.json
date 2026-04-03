@@ -1,0 +1,30 @@
+{
+    "id": "bathroom_core_S1",
+    "family": "wet_core",
+    "space_role_candidates": [
+        "bathroom"
+    ],
+    "width": 3,
+    "depth": 3,
+    "height": 3.0,
+    "zone": "private",
+    "rotatable": true,
+    "stackable": true,
+    "fixed_core": true,
+    "exterior_required": false,
+    "service_side": "south",
+    "edges": {
+        "north": "connectable",
+        "south": "service",
+        "east": "solid",
+        "west": "solid"
+    },
+    "connectable_to_families": [
+        "private",
+        "connector",
+        "wet_core"
+    ],
+    "interior_template_options": [
+        "bathroom_basic"
+    ]
+}

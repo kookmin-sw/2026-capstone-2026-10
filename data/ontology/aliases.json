@@ -1,0 +1,52 @@
+{
+    "space_aliases": {
+        "거실": "living_room",
+        "리빙룸": "living_room",
+        "living room": "living_room",
+        "living_room": "living_room",
+        "living area": "living_room",
+        "주방": "kitchen",
+        "부엌": "kitchen",
+        "kitchen": "kitchen",
+        "침실": "bedroom",
+        "bed room": "bedroom",
+        "bedroom": "bedroom",
+        "작업실": "workspace",
+        "서재": "workspace",
+        "study": "workspace",
+        "workspace": "workspace",
+        "home office": "workspace",
+        "욕실": "bathroom",
+        "화장실": "bathroom",
+        "bathroom": "bathroom",
+        "계단": "vertical_core",
+        "stair": "vertical_core",
+        "stairs": "vertical_core",
+        "vertical core": "vertical_core",
+        "복도": "connector",
+        "corridor": "connector",
+        "buffer": "connector"
+    },
+    "relation_aliases": {
+        "connected": "adjacent",
+        "adjacent": "adjacent",
+        "near": "near",
+        "close": "near",
+        "separated": "separated",
+        "apart": "separated"
+    },
+    "daylight_aliases": {
+        "bright": "high",
+        "sunny": "high",
+        "high": "high",
+        "medium": "medium",
+        "low": "low"
+    },
+    "privacy_aliases": {
+        "quiet": "high",
+        "private": "high",
+        "high": "high",
+        "medium": "medium",
+        "low": "low"
+    }
+}
