@@ -1,153 +1,301 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
+from PIL import Image, ImageDraw, ImageFont
 
-SPACE_COLOR_MAP = {
-    "entrance": "#B0BEC5",
-    "living_room": "#F2D15B",
-    "kitchen": "#F28A65",
-    "bedroom": "#81C784",
-    "workspace": "#64B5F6",
-    "bathroom": "#D9D9D9",
-    "vertical_core": "#9E9E9E",
-    "connector": "#CFCFCF"
-}
+BASE_DIR = Path(__file__).resolve().parents[2]
+IMAGES_2D_DIR = BASE_DIR / "artifacts" / "images_2d"
 
-BAND_BG_MAP = {
-    "public": "#FAFAFA",
-    "core": "#F5F5F5",
-    "connector": "#F8F8F8",
-    "private": "#FCFCFC",
-    "quiet": "#F7FBFF"
-}
+SCALE = 80
+PADDING = 40
 
+OUTER_WALL_STROKE = 14
+INNER_WALL_STROKE = 8
+SPACE_STROKE = 1
+LABEL_FONT_SIZE = 18
+WINDOW_STROKE = 4
 
-def _get_rect_height(item: dict[str, Any]) -> float:
-    if "depth" in item:
-        return item["depth"]
-    return item["height"]
+SPACE_FILL = "#ffffff"
+SPACE_STROKE_COLOR = "#d9d9d9"
+WALL_COLOR = "#111111"
+LABEL_COLOR = "#222222"
+BG_COLOR = "#ffffff"
 
 
-def render_layout_to_svg(layout: dict[str, Any], output_path: Path) -> None:
-    placements = layout.get("placements", [])
-    if not placements:
-        raise ValueError("layout에 placements가 없습니다.")
+def load_plan_geometry(plan_geometry_path: Path) -> dict[str, Any]:
+    with open(plan_geometry_path, "r", encoding="utf-8") as f:
+        return json.load(f)
 
-    scale = 40
-    padding = 40
-    title_height = 50
 
-    max_x = max(item["x"] + item["width"] for item in placements)
-    max_y = max(item["y"] + _get_rect_height(item) for item in placements)
+def compute_bounds(plan_geometry: dict[str, Any]) -> tuple[float, float, float, float]:
+    xs: list[float] = []
+    ys: list[float] = []
 
-    svg_width = int(max_x * scale + padding * 2)
-    svg_height = int(max_y * scale + padding * 2 + title_height)
+    for space in plan_geometry.get("spaces", []):
+        for x, y in space["polygon"]:
+            xs.append(x)
+            ys.append(y)
 
-    bands = layout.get("meta", {}).get("bands", {})
+    if not xs or not ys:
+        raise ValueError("plan_geometry does not contain any space polygons")
 
-    svg_parts: list[str] = []
+    return min(xs), min(ys), max(xs), max(ys)
 
-    svg_parts.append(
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{svg_width}" height="{svg_height}" '
-        f'viewBox="0 0 {svg_width} {svg_height}">'
+
+def wx(x: float, min_x: float) -> float:
+    return PADDING + (x - min_x) * SCALE
+
+
+def wy(y: float, min_y: float) -> float:
+    return PADDING + (y - min_y) * SCALE
+
+
+def load_font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    candidates = [
+        "arial.ttf",
+        "malgun.ttf",
+        "맑은 고딕.ttf",
+        "segoeui.ttf",
+    ]
+
+    for name in candidates:
+        try:
+            return ImageFont.truetype(name, size)
+        except Exception:
+            pass
+
+    return ImageFont.load_default()
+
+
+def svg_line(x1: float, y1: float, x2: float, y2: float, stroke: str, width: float, linecap: str = "square") -> str:
+    return (
+        f'<line x1="{x1:.2f}" y1="{y1:.2f}" x2="{x2:.2f}" y2="{y2:.2f}" '
+        f'stroke="{stroke}" stroke-width="{width}" stroke-linecap="{linecap}" />'
     )
 
-    # 배경
-    svg_parts.append(f'<rect x="0" y="0" width="{svg_width}" height="{svg_height}" fill="#ffffff"/>')
 
-    # 제목
-    svg_parts.append(
-        f'<text x="{svg_width/2}" y="30" text-anchor="middle" '
-        f'font-family="Arial, sans-serif" font-size="24" font-weight="600" fill="#222">'
-        f'Modular Layout Preview</text>'
+def svg_polygon(points: list[tuple[float, float]], stroke: str, width: float, fill: str) -> str:
+    pts = " ".join(f"{x:.2f},{y:.2f}" for x, y in points)
+    return f'<polygon points="{pts}" stroke="{stroke}" stroke-width="{width}" fill="{fill}" />'
+
+
+def svg_text(x: float, y: float, text: str, size: int, color: str) -> str:
+    safe = (
+        text.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+    )
+    return (
+        f'<text x="{x:.2f}" y="{y:.2f}" text-anchor="middle" dominant-baseline="middle" '
+        f'font-family="Arial, Helvetica, sans-serif" font-size="{size}" fill="{color}">{safe}</text>'
     )
 
-    # band 배경
-    band_height = 6 * scale
-    for band_name, band_y in bands.items():
-        y_px = padding + title_height + band_y * scale
-        fill = BAND_BG_MAP.get(band_name, "#FAFAFA")
-        svg_parts.append(
-            f'<rect x="{padding}" y="{y_px}" width="{max_x * scale}" height="{band_height}" '
-            f'fill="{fill}" stroke="none"/>'
-        )
-        svg_parts.append(
-            f'<text x="{padding - 10}" y="{y_px + 24}" text-anchor="end" '
-            f'font-family="Arial, sans-serif" font-size="12" fill="#666">{band_name}</text>'
-        )
 
-    # 그리드
-    for gx in range(0, int(max_x) + 2):
-        x_px = padding + gx * scale
-        y1 = padding + title_height
-        y2 = padding + title_height + max_y * scale
-        svg_parts.append(
-            f'<line x1="{x_px}" y1="{y1}" x2="{x_px}" y2="{y2}" stroke="#e6e6e6" stroke-width="1"/>'
-        )
+def build_svg(plan_geometry: dict[str, Any]) -> str:
+    min_x, min_y, max_x, max_y = compute_bounds(plan_geometry)
+    canvas_width = int((max_x - min_x) * SCALE + PADDING * 2)
+    canvas_height = int((max_y - min_y) * SCALE + PADDING * 2)
 
-    for gy in range(0, int(max_y) + 2):
-        y_px = padding + title_height + gy * scale
-        x1 = padding
-        x2 = padding + max_x * scale
-        svg_parts.append(
-            f'<line x1="{x1}" y1="{y_px}" x2="{x2}" y2="{y_px}" stroke="#e6e6e6" stroke-width="1"/>'
+    elements: list[str] = []
+
+    for space in plan_geometry.get("spaces", []):
+        pts = [(wx(x, min_x), wy(y, min_y)) for x, y in space["polygon"]]
+        elements.append(svg_polygon(pts, SPACE_STROKE_COLOR, SPACE_STROKE, SPACE_FILL))
+
+    for wall in plan_geometry.get("outer_edges", []):
+        elements.append(
+            svg_line(
+                wx(wall["x1"], min_x),
+                wy(wall["y1"], min_y),
+                wx(wall["x2"], min_x),
+                wy(wall["y2"], min_y),
+                WALL_COLOR,
+                OUTER_WALL_STROKE,
+            )
         )
 
-    # 블록
-    for item in placements:
-        x = item["x"]
-        y = item["y"]
-        w = item["width"]
-        h = _get_rect_height(item)
-
-        x_px = padding + x * scale
-        y_px = padding + title_height + y * scale
-        w_px = w * scale
-        h_px = h * scale
-
-        space_type = item["space_type"]
-        family = item.get("family", "")
-        band = item.get("band", "")
-        color = SPACE_COLOR_MAP.get(space_type, "#CCCCCC")
-
-        svg_parts.append(
-            f'<rect x="{x_px}" y="{y_px}" width="{w_px}" height="{h_px}" '
-            f'rx="6" ry="6" fill="{color}" stroke="#111" stroke-width="2"/>'
+    for wall in plan_geometry.get("inner_walls", []):
+        elements.append(
+            svg_line(
+                wx(wall["x1"], min_x),
+                wy(wall["y1"], min_y),
+                wx(wall["x2"], min_x),
+                wy(wall["y2"], min_y),
+                WALL_COLOR,
+                INNER_WALL_STROKE,
+            )
         )
 
-        label_main = space_type
-        label_sub = f"{w}x{h}"
-        label_small = family if family else band
+    for opening in plan_geometry.get("openings", []):
+        x1 = wx(opening["x1"], min_x)
+        y1 = wy(opening["y1"], min_y)
+        x2 = wx(opening["x2"], min_x)
+        y2 = wy(opening["y2"], min_y)
 
-        cx = x_px + w_px / 2
-        cy = y_px + h_px / 2
+        if opening["kind"] == "window":
+            elements.append(svg_line(x1, y1, x2, y2, BG_COLOR, OUTER_WALL_STROKE + 2, "butt"))
+            elements.append(svg_line(x1, y1, x2, y2, WALL_COLOR, WINDOW_STROKE, "butt"))
 
-        svg_parts.append(
-            f'<text x="{cx}" y="{cy - 8}" text-anchor="middle" '
-            f'font-family="Arial, sans-serif" font-size="12" font-weight="600" fill="#111">'
-            f'{label_main}</text>'
+        elif opening["kind"] == "opening":
+            gap_width = OUTER_WALL_STROKE + 2 if opening["placement"] == "exterior" else INNER_WALL_STROKE + 2
+            elements.append(svg_line(x1, y1, x2, y2, BG_COLOR, gap_width, "butt"))
+
+    for label in plan_geometry.get("labels", []):
+        elements.append(
+            svg_text(
+                wx(label["x"], min_x),
+                wy(label["y"], min_y),
+                label["text"],
+                LABEL_FONT_SIZE,
+                LABEL_COLOR,
+            )
         )
-        svg_parts.append(
-            f'<text x="{cx}" y="{cy + 10}" text-anchor="middle" '
-            f'font-family="Arial, sans-serif" font-size="11" fill="#222">'
-            f'({label_sub})</text>'
-        )
-        svg_parts.append(
-            f'<text x="{cx}" y="{cy + 26}" text-anchor="middle" '
-            f'font-family="Arial, sans-serif" font-size="10" fill="#555">'
-            f'{label_small}</text>'
-        )
 
-    # 외곽 프레임
-    svg_parts.append(
-        f'<rect x="{padding}" y="{padding + title_height}" width="{max_x * scale}" height="{max_y * scale}" '
-        f'fill="none" stroke="#999" stroke-width="1.5"/>'
-    )
+    body = "\n  ".join(elements)
 
-    svg_parts.append("</svg>")
+    return f'''<svg xmlns="http://www.w3.org/2000/svg" width="{canvas_width}" height="{canvas_height}" viewBox="0 0 {canvas_width} {canvas_height}">
+  <rect x="0" y="0" width="{canvas_width}" height="{canvas_height}" fill="{BG_COLOR}" />
+  {body}
+</svg>
+'''
 
+
+def save_svg(svg_text_value: str, output_path: Path) -> Path:
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, "w", encoding="utf-8") as f:
-        f.write("\n".join(svg_parts))
+    output_path.write_text(svg_text_value, encoding="utf-8")
+    return output_path
+
+
+def draw_spaces_png(draw: ImageDraw.ImageDraw, plan_geometry: dict[str, Any], min_x: float, min_y: float) -> None:
+    for space in plan_geometry.get("spaces", []):
+        pts = [(wx(x, min_x), wy(y, min_y)) for x, y in space["polygon"]]
+        draw.polygon(pts, fill=SPACE_FILL, outline=SPACE_STROKE_COLOR)
+
+
+def draw_outer_walls_png(draw: ImageDraw.ImageDraw, plan_geometry: dict[str, Any], min_x: float, min_y: float) -> None:
+    for wall in plan_geometry.get("outer_edges", []):
+        draw.line(
+            [
+                (wx(wall["x1"], min_x), wy(wall["y1"], min_y)),
+                (wx(wall["x2"], min_x), wy(wall["y2"], min_y)),
+            ],
+            fill=WALL_COLOR,
+            width=OUTER_WALL_STROKE,
+        )
+
+
+def draw_inner_walls_png(draw: ImageDraw.ImageDraw, plan_geometry: dict[str, Any], min_x: float, min_y: float) -> None:
+    for wall in plan_geometry.get("inner_walls", []):
+        draw.line(
+            [
+                (wx(wall["x1"], min_x), wy(wall["y1"], min_y)),
+                (wx(wall["x2"], min_x), wy(wall["y2"], min_y)),
+            ],
+            fill=WALL_COLOR,
+            width=INNER_WALL_STROKE,
+        )
+
+
+def draw_window_png(draw: ImageDraw.ImageDraw, opening: dict[str, Any], min_x: float, min_y: float) -> None:
+    x1 = wx(opening["x1"], min_x)
+    y1 = wy(opening["y1"], min_y)
+    x2 = wx(opening["x2"], min_x)
+    y2 = wy(opening["y2"], min_y)
+
+    draw.line([(x1, y1), (x2, y2)], fill=BG_COLOR, width=OUTER_WALL_STROKE + 2)
+    draw.line([(x1, y1), (x2, y2)], fill=WALL_COLOR, width=WINDOW_STROKE)
+
+    if abs(x1 - x2) < 1e-6:
+        draw.line([(x1 - 5, y1), (x2 - 5, y2)], fill=WALL_COLOR, width=1)
+        draw.line([(x1 + 5, y1), (x2 + 5, y2)], fill=WALL_COLOR, width=1)
+    else:
+        draw.line([(x1, y1 - 5), (x2, y2 - 5)], fill=WALL_COLOR, width=1)
+        draw.line([(x1, y1 + 5), (x2, y2 + 5)], fill=WALL_COLOR, width=1)
+
+
+def draw_opening_gap_png(draw: ImageDraw.ImageDraw, opening: dict[str, Any], min_x: float, min_y: float) -> None:
+    x1 = wx(opening["x1"], min_x)
+    y1 = wy(opening["y1"], min_y)
+    x2 = wx(opening["x2"], min_x)
+    y2 = wy(opening["y2"], min_y)
+
+    gap_width = OUTER_WALL_STROKE + 2 if opening["placement"] == "exterior" else INNER_WALL_STROKE + 2
+    draw.line([(x1, y1), (x2, y2)], fill=BG_COLOR, width=gap_width)
+
+
+def draw_openings_png(draw: ImageDraw.ImageDraw, plan_geometry: dict[str, Any], min_x: float, min_y: float) -> None:
+    for opening in plan_geometry.get("openings", []):
+        if opening["kind"] == "window":
+            draw_window_png(draw, opening, min_x, min_y)
+        elif opening["kind"] == "opening":
+            draw_opening_gap_png(draw, opening, min_x, min_y)
+
+
+def draw_labels_png(draw: ImageDraw.ImageDraw, plan_geometry: dict[str, Any], min_x: float, min_y: float) -> None:
+    font = load_font(LABEL_FONT_SIZE)
+
+    for label in plan_geometry.get("labels", []):
+        x = wx(label["x"], min_x)
+        y = wy(label["y"], min_y)
+        text = label["text"]
+
+        try:
+            bbox = draw.textbbox((0, 0), text, font=font)
+            tw = bbox[2] - bbox[0]
+            th = bbox[3] - bbox[1]
+        except Exception:
+            tw, th = draw.textlength(text, font=font), LABEL_FONT_SIZE
+
+        draw.text((x - tw / 2, y - th / 2), text, fill=LABEL_COLOR, font=font)
+
+
+def build_png(plan_geometry: dict[str, Any]) -> Image.Image:
+    min_x, min_y, max_x, max_y = compute_bounds(plan_geometry)
+    canvas_width = int((max_x - min_x) * SCALE + PADDING * 2)
+    canvas_height = int((max_y - min_y) * SCALE + PADDING * 2)
+
+    image = Image.new("RGB", (canvas_width, canvas_height), BG_COLOR)
+    draw = ImageDraw.Draw(image)
+
+    draw_spaces_png(draw, plan_geometry, min_x, min_y)
+    draw_outer_walls_png(draw, plan_geometry, min_x, min_y)
+    draw_inner_walls_png(draw, plan_geometry, min_x, min_y)
+    draw_openings_png(draw, plan_geometry, min_x, min_y)
+    draw_labels_png(draw, plan_geometry, min_x, min_y)
+
+    return image
+
+
+def save_png(image: Image.Image, output_path: Path) -> Path:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    image.save(output_path)
+    return output_path
+
+
+def render_plan_geometry_file(plan_geometry_path: Path) -> tuple[Path, Path]:
+    plan_geometry = load_plan_geometry(plan_geometry_path)
+
+    svg_text_value = build_svg(plan_geometry)
+    png_image = build_png(plan_geometry)
+
+    base_name = plan_geometry_path.stem.replace(".plan_geometry", "")
+    svg_path = IMAGES_2D_DIR / f"{base_name}.svg"
+    png_path = IMAGES_2D_DIR / f"{base_name}.png"
+
+    save_svg(svg_text_value, svg_path)
+    save_png(png_image, png_path)
+
+    return svg_path, png_path
+
+
+def render_plan_geometry_file_to_svg(plan_geometry_path: Path) -> Path:
+    svg_path, _ = render_plan_geometry_file(plan_geometry_path)
+    return svg_path
+
+
+def render_plan_geometry_file_to_png(plan_geometry_path: Path) -> Path:
+    _, png_path = render_plan_geometry_file(plan_geometry_path)
+    return png_path
