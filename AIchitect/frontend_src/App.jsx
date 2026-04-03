@@ -130,6 +130,9 @@ function buildFallbackSvg(orderJson = {}) {
 // ==========================================
 
 function App() {
+  // 시작 페이지 여부를 관리하는 상태
+  const [isStarted, setIsStarted] = useState(false);
+
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [chatHistory, setChatHistory] = useState([
@@ -148,10 +151,9 @@ function App() {
     return svgOverride || buildFallbackSvg(orderJson);
   }, [orderJson, svgOverride]);
 
-  // 구글 Gemini API 키 (보안을 위해 발급받은 키를 여기에 넣으세요!)
+  // 구글 Gemini API 키
   const API_KEY = "AIzaSyDdySWDsjk3Qe-6JCxwMaNhJw9O_zlDlac"; 
 
-  // 핵심 수정: AI가 인터뷰어 역할을 하도록 프롬프트 완전히 변경
   const SYSTEM_PROMPT = `
     당신은 전문적인 모듈러 건축 설계 에이전트 'Aichitect'입니다. 
     사용자와 자연스럽게 대화하며 건축에 필요한 요구사항을 단계별로 수집하고, 모든 정보가 모이면 최종 설계도를 생성해야 합니다.
@@ -177,10 +179,8 @@ function App() {
     - "complete": 위 3가지 정보가 충분히 수집되었을 때. 이때는 reply_message에 "모든 정보가 수집되어 도면을 생성했습니다!" 등의 인사를 남기고, 나머지 설계 데이터(occupancy, relationship, space_traits)를 완벽하게 채워 반환하세요.
   `;
 
-  // 대화 내역(Context)을 통째로 넘겨주기 위해 인자를 추가
   const fetchLLMResponse = async (userMessage, history) => {
     try {
-      // 대화 내역을 하나의 문자열로 묶어서 AI가 이전 문맥을 알 수 있게 만듦
       const historyContext = history
         .map(chat => `${chat.sender === 'USER' ? '사용자' : 'AI'}: ${chat.text}`)
         .join('\n');
@@ -220,14 +220,12 @@ function App() {
     if (!inputText.trim() || isLoading) return;
 
     const userText = inputText;
-    // 이전 대화 기록을 변수에 따로 저장해 둠 (API 호출용)
     const currentHistory = [...chatHistory]; 
     
     setChatHistory((prev) => [...prev, { sender: 'USER', text: userText }]);
     setInputText("");
     setIsLoading(true);
 
-    // API를 호출할 때 이전 대화 기록(currentHistory)을 함께 넘겨줌
     const aiData = await fetchLLMResponse(userText, currentHistory);
 
     if (aiData) {
@@ -236,11 +234,10 @@ function App() {
         { sender: 'AI', text: aiData.reply_message || "응답을 생성했습니다." }
       ]);
       
-      // AI가 "complete" 상태를 반환했을 때만 도면 데이터를 업데이트!
       if (aiData.status === 'complete') {
         const jsonToDisplay = { ...aiData };
         delete jsonToDisplay.reply_message; 
-        delete jsonToDisplay.status; // status는 도면 데이터에 불필요하므로 삭제
+        delete jsonToDisplay.status; 
         
         if (jsonToDisplay.svg_markup) {
           setSvgOverride(jsonToDisplay.svg_markup);
@@ -250,8 +247,6 @@ function App() {
         }
         setOrderJson(jsonToDisplay);
       } 
-      // 만약 "interviewing" 상태라면 도면 데이터(orderJson)는 업데이트 하지 않고 대화만 이어나감
-
     } else {
       setChatHistory((prev) => [
         ...prev, 
@@ -262,6 +257,28 @@ function App() {
     setIsLoading(false);
   };
 
+  // 렌더링 파트 1: 시작 페이지
+  if (!isStarted) {
+    return (
+      <div className="start-page">
+        <div className="start-content">
+          <h1 className="start-title">Aichitect</h1>
+          <p className="start-description">
+            AI와 대화하며 당신만의 맞춤형 공간을 설계해보세요.<br />
+            당신의 아이디어가 실시간으로 도면이 됩니다.
+          </p>
+          <button 
+            className="start-button" 
+            onClick={() => setIsStarted(true)}
+          >
+            설계 시작하기
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // 렌더링 파트 2: 메인 작업 공간
   return (
     <div className="app-container">
       {/* 좌측: 대화형 에이전트 패널 */}
@@ -329,12 +346,10 @@ function App() {
             <span className="json-title">LIVE PREVIEW</span>
           </div>
           <div className="svg-content" style={{ flex: 1, padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8f4ec', borderRadius: '0 0 10px 10px' }}>
-            {/* SVG 도면 렌더링 */}
             <div dangerouslySetInnerHTML={{ __html: svgMarkup }} style={{ width: '100%', height: '100%' }} />
           </div>
         </div>
       </div>
-
     </div>
   );
 }
