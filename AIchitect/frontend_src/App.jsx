@@ -53,7 +53,6 @@ function labelForRoom(name) {
 }
 
 function buildFallbackSvg(orderJson = {}) {
-  // 1. 정보가 모이기 전(orderJson이 비어있을 때) 빈 그리드와 대기 메시지 표시
   if (!orderJson || Object.keys(orderJson).length === 0) {
     return `
       <svg viewBox="0 0 900 600" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
@@ -71,7 +70,6 @@ function buildFallbackSvg(orderJson = {}) {
     `;
   }
 
-  // 2. 정보가 수집된 후 실제 도면 그리기
   const rooms = expandRooms(orderJson);
 
   const slots = [
@@ -130,9 +128,7 @@ function buildFallbackSvg(orderJson = {}) {
 // ==========================================
 
 function App() {
-  // 시작 페이지 여부를 관리하는 상태
   const [isStarted, setIsStarted] = useState(false);
-
   const [inputText, setInputText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [chatHistory, setChatHistory] = useState([
@@ -151,7 +147,7 @@ function App() {
     return svgOverride || buildFallbackSvg(orderJson);
   }, [orderJson, svgOverride]);
 
-  // 구글 Gemini API 키
+  // 구글 Gemini API 키 (주의: 운영 환경에서는 백엔드로 분리해야 합니다)
   const API_KEY = "AIzaSyDdySWDsjk3Qe-6JCxwMaNhJw9O_zlDlac"; 
 
   const SYSTEM_PROMPT = `
@@ -257,7 +253,78 @@ function App() {
     setIsLoading(false);
   };
 
-  // 렌더링 파트 1: 시작 페이지
+  // ==========================================
+  // 내보내기 기능 함수들
+  // ==========================================
+  
+  // 1. SVG 파일로 다운로드
+  const downloadSVG = () => {
+    if (!svgMarkup) return;
+    const blob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'aichitect-floorplan.svg';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  // 2. PNG 이미지로 변환 후 다운로드
+  const downloadPNG = () => {
+    if (!svgMarkup) return;
+    const canvas = document.createElement('canvas');
+    canvas.width = 1800; // 해상도를 2배로 높여 선명하게 저장
+    canvas.height = 1200;
+    const ctx = canvas.getContext('2d');
+
+    const img = new Image();
+    const svgBlob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+
+    img.onload = () => {
+      // 배경색 채우기
+      ctx.fillStyle = '#f8f4ec';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      // 이미지를 캔버스에 그리기
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+      const pngUrl = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.href = pngUrl;
+      link.download = 'aichitect-floorplan.png';
+      link.click();
+      URL.revokeObjectURL(url);
+    };
+    img.src = url;
+  };
+
+  // 3. 네이티브 공유하기
+  const handleShare = async () => {
+    const shareData = {
+      title: 'Aichitect 맞춤형 도면',
+      text: '제가 AI와 함께 설계한 나만의 공간을 확인해보세요!',
+      url: window.location.href,
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (error) {
+        console.log('공유 실패:', error);
+      }
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      alert('링크가 클립보드에 복사되었습니다!');
+    }
+  };
+
+  // 4. PDF 다운로드 (브라우저 인쇄 모드)
+  const downloadPDF = () => {
+    window.print();
+  };
+
   if (!isStarted) {
     return (
       <div className="start-page">
@@ -278,7 +345,6 @@ function App() {
     );
   }
 
-  // 렌더링 파트 2: 메인 작업 공간
   return (
     <div className="app-container">
       {/* 좌측: 대화형 에이전트 패널 */}
@@ -337,6 +403,7 @@ function App() {
       {/* 우측: 뷰어 패널 구역 */}
       <div className="right-panels" style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
         <div className="panel svg-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          
           <div className="json-header">
             <div className="mac-dots">
               <div className="mac-dot red"></div>
@@ -344,7 +411,26 @@ function App() {
               <div className="mac-dot green"></div>
             </div>
             <span className="json-title">LIVE PREVIEW</span>
+            
+            {/* 내보내기 툴바 */}
+            <div className="export-toolbar">
+              <button onClick={downloadPNG} className="export-btn" title="PNG 다운로드">PNG</button>
+              <button onClick={downloadSVG} className="export-btn" title="SVG 다운로드">SVG</button>
+              <button onClick={downloadPDF} className="export-btn" title="PDF 인쇄">PDF</button>
+              <div className="divider"></div>
+              <button onClick={handleShare} className="export-btn share-btn" title="공유하기">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="18" cy="5" r="3"></circle>
+                  <circle cx="6" cy="12" r="3"></circle>
+                  <circle cx="18" cy="19" r="3"></circle>
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                </svg>
+                공유
+              </button>
+            </div>
           </div>
+
           <div className="svg-content" style={{ flex: 1, padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8f4ec', borderRadius: '0 0 10px 10px' }}>
             <div dangerouslySetInnerHTML={{ __html: svgMarkup }} style={{ width: '100%', height: '100%' }} />
           </div>
