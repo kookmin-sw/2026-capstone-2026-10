@@ -1,11 +1,14 @@
 import json
+import sys
 from pathlib import Path
 
-from services.normalize_service import normalize_llm_json, validate_internal_format
-from services.rules_service import generate_placement_rules
-
-
 BASE_DIR = Path(__file__).resolve().parents[1]
+
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
+
+from app.services.normalize_service import normalize_llm_json, validate_internal_format
+from app.services.rules_service import generate_placement_rules
 
 RAW_INPUT_PATH = BASE_DIR / "artifacts" / "raw_llm" / "raw_001.json"
 
