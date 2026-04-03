@@ -1,0 +1,823 @@
+{
+  "spaces": [
+    {
+      "id": "entrance_0",
+      "space_type": "entrance",
+      "x": 0,
+      "y": 0.0,
+      "width": 3,
+      "depth": 3,
+      "rotation": 0,
+      "polygon": [
+        [
+          0,
+          0.0
+        ],
+        [
+          3,
+          0.0
+        ],
+        [
+          3,
+          3.0
+        ],
+        [
+          0,
+          3.0
+        ]
+      ]
+    },
+    {
+      "id": "living_room_1",
+      "space_type": "living_room",
+      "x": 3,
+      "y": 0.0,
+      "width": 6,
+      "depth": 6,
+      "rotation": 0,
+      "polygon": [
+        [
+          3,
+          0.0
+        ],
+        [
+          9,
+          0.0
+        ],
+        [
+          9,
+          6.0
+        ],
+        [
+          3,
+          6.0
+        ]
+      ]
+    },
+    {
+      "id": "kitchen_2",
+      "space_type": "kitchen",
+      "x": 9,
+      "y": 0.0,
+      "width": 3,
+      "depth": 6,
+      "rotation": 0,
+      "polygon": [
+        [
+          9,
+          0.0
+        ],
+        [
+          12,
+          0.0
+        ],
+        [
+          12,
+          6.0
+        ],
+        [
+          9,
+          6.0
+        ]
+      ]
+    },
+    {
+      "id": "bedroom_3",
+      "space_type": "bedroom",
+      "x": 0,
+      "y": 3.0,
+      "width": 3,
+      "depth": 4,
+      "rotation": 0,
+      "polygon": [
+        [
+          0,
+          3.0
+        ],
+        [
+          3,
+          3.0
+        ],
+        [
+          3,
+          7.0
+        ],
+        [
+          0,
+          7.0
+        ]
+      ]
+    },
+    {
+      "id": "bedroom_4",
+      "space_type": "bedroom",
+      "x": 3,
+      "y": 6.0,
+      "width": 3,
+      "depth": 4,
+      "rotation": 0,
+      "polygon": [
+        [
+          3,
+          6.0
+        ],
+        [
+          6,
+          6.0
+        ],
+        [
+          6,
+          10.0
+        ],
+        [
+          3,
+          10.0
+        ]
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "space_id": "entrance_0",
+      "space_type": "entrance",
+      "side": "north",
+      "x1": 0,
+      "y1": 0.0,
+      "x2": 3,
+      "y2": 0.0,
+      "edge_type": "entry"
+    },
+    {
+      "space_id": "entrance_0",
+      "space_type": "entrance",
+      "side": "east",
+      "x1": 3,
+      "y1": 0.0,
+      "x2": 3,
+      "y2": 3.0,
+      "edge_type": "solid"
+    },
+    {
+      "space_id": "entrance_0",
+      "space_type": "entrance",
+      "side": "south",
+      "x1": 0,
+      "y1": 3.0,
+      "x2": 3,
+      "y2": 3.0,
+      "edge_type": "connectable"
+    },
+    {
+      "space_id": "entrance_0",
+      "space_type": "entrance",
+      "side": "west",
+      "x1": 0,
+      "y1": 0.0,
+      "x2": 0,
+      "y2": 3.0,
+      "edge_type": "solid"
+    },
+    {
+      "space_id": "living_room_1",
+      "space_type": "living_room",
+      "side": "north",
+      "x1": 3,
+      "y1": 0.0,
+      "x2": 9,
+      "y2": 0.0,
+      "edge_type": "connectable"
+    },
+    {
+      "space_id": "living_room_1",
+      "space_type": "living_room",
+      "side": "east",
+      "x1": 9,
+      "y1": 0.0,
+      "x2": 9,
+      "y2": 6.0,
+      "edge_type": "connectable"
+    },
+    {
+      "space_id": "living_room_1",
+      "space_type": "living_room",
+      "side": "south",
+      "x1": 3,
+      "y1": 6.0,
+      "x2": 9,
+      "y2": 6.0,
+      "edge_type": "window_preferred"
+    },
+    {
+      "space_id": "living_room_1",
+      "space_type": "living_room",
+      "side": "west",
+      "x1": 3,
+      "y1": 0.0,
+      "x2": 3,
+      "y2": 6.0,
+      "edge_type": "connectable"
+    },
+    {
+      "space_id": "kitchen_2",
+      "space_type": "kitchen",
+      "side": "north",
+      "x1": 9,
+      "y1": 0.0,
+      "x2": 12,
+      "y2": 0.0,
+      "edge_type": "connectable"
+    },
+    {
+      "space_id": "kitchen_2",
+      "space_type": "kitchen",
+      "side": "east",
+      "x1": 12,
+      "y1": 0.0,
+      "x2": 12,
+      "y2": 6.0,
+      "edge_type": "connectable"
+    },
+    {
+      "space_id": "kitchen_2",
+      "space_type": "kitchen",
+      "side": "south",
+      "x1": 9,
+      "y1": 6.0,
+      "x2": 12,
+      "y2": 6.0,
+      "edge_type": "service"
+    },
+    {
+      "space_id": "kitchen_2",
+      "space_type": "kitchen",
+      "side": "west",
+      "x1": 9,
+      "y1": 0.0,
+      "x2": 9,
+      "y2": 6.0,
+      "edge_type": "solid"
+    },
+    {
+      "space_id": "bedroom_3",
+      "space_type": "bedroom",
+      "side": "north",
+      "x1": 0,
+      "y1": 3.0,
+      "x2": 3,
+      "y2": 3.0,
+      "edge_type": "solid"
+    },
+    {
+      "space_id": "bedroom_3",
+      "space_type": "bedroom",
+      "side": "east",
+      "x1": 3,
+      "y1": 3.0,
+      "x2": 3,
+      "y2": 7.0,
+      "edge_type": "connectable"
+    },
+    {
+      "space_id": "bedroom_3",
+      "space_type": "bedroom",
+      "side": "south",
+      "x1": 0,
+      "y1": 7.0,
+      "x2": 3,
+      "y2": 7.0,
+      "edge_type": "window_preferred"
+    },
+    {
+      "space_id": "bedroom_3",
+      "space_type": "bedroom",
+      "side": "west",
+      "x1": 0,
+      "y1": 3.0,
+      "x2": 0,
+      "y2": 7.0,
+      "edge_type": "solid"
+    },
+    {
+      "space_id": "bedroom_4",
+      "space_type": "bedroom",
+      "side": "north",
+      "x1": 3,
+      "y1": 6.0,
+      "x2": 6,
+      "y2": 6.0,
+      "edge_type": "solid"
+    },
+    {
+      "space_id": "bedroom_4",
+      "space_type": "bedroom",
+      "side": "east",
+      "x1": 6,
+      "y1": 6.0,
+      "x2": 6,
+      "y2": 10.0,
+      "edge_type": "connectable"
+    },
+    {
+      "space_id": "bedroom_4",
+      "space_type": "bedroom",
+      "side": "south",
+      "x1": 3,
+      "y1": 10.0,
+      "x2": 6,
+      "y2": 10.0,
+      "edge_type": "window_preferred"
+    },
+    {
+      "space_id": "bedroom_4",
+      "space_type": "bedroom",
+      "side": "west",
+      "x1": 3,
+      "y1": 6.0,
+      "x2": 3,
+      "y2": 10.0,
+      "edge_type": "solid"
+    }
+  ],
+  "shared_edges": [
+    {
+      "space_a": "entrance_0",
+      "space_type_a": "entrance",
+      "side_a": "east",
+      "edge_type_a": "solid",
+      "space_b": "living_room_1",
+      "space_type_b": "living_room",
+      "side_b": "west",
+      "edge_type_b": "connectable",
+      "x1": 3,
+      "y1": 0.0,
+      "x2": 3,
+      "y2": 3.0
+    },
+    {
+      "space_a": "entrance_0",
+      "space_type_a": "entrance",
+      "side_a": "south",
+      "edge_type_a": "connectable",
+      "space_b": "bedroom_3",
+      "space_type_b": "bedroom",
+      "side_b": "north",
+      "edge_type_b": "solid",
+      "x1": 0,
+      "y1": 3.0,
+      "x2": 3,
+      "y2": 3.0
+    },
+    {
+      "space_a": "living_room_1",
+      "space_type_a": "living_room",
+      "side_a": "east",
+      "edge_type_a": "connectable",
+      "space_b": "kitchen_2",
+      "space_type_b": "kitchen",
+      "side_b": "west",
+      "edge_type_b": "solid",
+      "x1": 9,
+      "y1": 0.0,
+      "x2": 9,
+      "y2": 6.0
+    },
+    {
+      "space_a": "living_room_1",
+      "space_type_a": "living_room",
+      "side_a": "south",
+      "edge_type_a": "window_preferred",
+      "space_b": "bedroom_4",
+      "space_type_b": "bedroom",
+      "side_b": "north",
+      "edge_type_b": "solid",
+      "x1": 3,
+      "y1": 6.0,
+      "x2": 6,
+      "y2": 6.0
+    },
+    {
+      "space_a": "living_room_1",
+      "space_type_a": "living_room",
+      "side_a": "west",
+      "edge_type_a": "connectable",
+      "space_b": "bedroom_3",
+      "space_type_b": "bedroom",
+      "side_b": "east",
+      "edge_type_b": "connectable",
+      "x1": 3,
+      "y1": 3.0,
+      "x2": 3,
+      "y2": 6.0
+    },
+    {
+      "space_a": "bedroom_3",
+      "space_type_a": "bedroom",
+      "side_a": "east",
+      "edge_type_a": "connectable",
+      "space_b": "bedroom_4",
+      "space_type_b": "bedroom",
+      "side_b": "west",
+      "edge_type_b": "solid",
+      "x1": 3,
+      "y1": 6.0,
+      "x2": 3,
+      "y2": 7.0
+    }
+  ],
+  "outer_edges": [
+    {
+      "space_id": "entrance_0",
+      "space_type": "entrance",
+      "side": "north",
+      "x1": 0,
+      "y1": 0.0,
+      "x2": 3,
+      "y2": 0.0,
+      "edge_type": "entry",
+      "wall_kind": "outer",
+      "thickness": 0.2
+    },
+    {
+      "space_id": "entrance_0",
+      "space_type": "entrance",
+      "side": "west",
+      "x1": 0,
+      "y1": 0.0,
+      "x2": 0,
+      "y2": 3.0,
+      "edge_type": "solid",
+      "wall_kind": "outer",
+      "thickness": 0.2
+    },
+    {
+      "space_id": "living_room_1",
+      "space_type": "living_room",
+      "side": "north",
+      "x1": 3,
+      "y1": 0.0,
+      "x2": 9,
+      "y2": 0.0,
+      "edge_type": "connectable",
+      "wall_kind": "outer",
+      "thickness": 0.2
+    },
+    {
+      "space_id": "living_room_1",
+      "space_type": "living_room",
+      "side": "south",
+      "x1": 6,
+      "y1": 6.0,
+      "x2": 9,
+      "y2": 6.0,
+      "edge_type": "window_preferred",
+      "wall_kind": "outer",
+      "thickness": 0.2
+    },
+    {
+      "space_id": "kitchen_2",
+      "space_type": "kitchen",
+      "side": "north",
+      "x1": 9,
+      "y1": 0.0,
+      "x2": 12,
+      "y2": 0.0,
+      "edge_type": "connectable",
+      "wall_kind": "outer",
+      "thickness": 0.2
+    },
+    {
+      "space_id": "kitchen_2",
+      "space_type": "kitchen",
+      "side": "east",
+      "x1": 12,
+      "y1": 0.0,
+      "x2": 12,
+      "y2": 6.0,
+      "edge_type": "connectable",
+      "wall_kind": "outer",
+      "thickness": 0.2
+    },
+    {
+      "space_id": "kitchen_2",
+      "space_type": "kitchen",
+      "side": "south",
+      "x1": 9,
+      "y1": 6.0,
+      "x2": 12,
+      "y2": 6.0,
+      "edge_type": "service",
+      "wall_kind": "outer",
+      "thickness": 0.2
+    },
+    {
+      "space_id": "bedroom_3",
+      "space_type": "bedroom",
+      "side": "south",
+      "x1": 0,
+      "y1": 7.0,
+      "x2": 3,
+      "y2": 7.0,
+      "edge_type": "window_preferred",
+      "wall_kind": "outer",
+      "thickness": 0.2
+    },
+    {
+      "space_id": "bedroom_3",
+      "space_type": "bedroom",
+      "side": "west",
+      "x1": 0,
+      "y1": 3.0,
+      "x2": 0,
+      "y2": 7.0,
+      "edge_type": "solid",
+      "wall_kind": "outer",
+      "thickness": 0.2
+    },
+    {
+      "space_id": "bedroom_4",
+      "space_type": "bedroom",
+      "side": "east",
+      "x1": 6,
+      "y1": 6.0,
+      "x2": 6,
+      "y2": 10.0,
+      "edge_type": "connectable",
+      "wall_kind": "outer",
+      "thickness": 0.2
+    },
+    {
+      "space_id": "bedroom_4",
+      "space_type": "bedroom",
+      "side": "south",
+      "x1": 3,
+      "y1": 10.0,
+      "x2": 6,
+      "y2": 10.0,
+      "edge_type": "window_preferred",
+      "wall_kind": "outer",
+      "thickness": 0.2
+    },
+    {
+      "space_id": "bedroom_4",
+      "space_type": "bedroom",
+      "side": "west",
+      "x1": 3,
+      "y1": 7.0,
+      "x2": 3,
+      "y2": 10.0,
+      "edge_type": "solid",
+      "wall_kind": "outer",
+      "thickness": 0.2
+    }
+  ],
+  "inner_walls": [
+    {
+      "wall_kind": "inner",
+      "space_a": "entrance_0",
+      "space_type_a": "entrance",
+      "side_a": "east",
+      "edge_type_a": "solid",
+      "space_b": "living_room_1",
+      "space_type_b": "living_room",
+      "side_b": "west",
+      "edge_type_b": "connectable",
+      "x1": 3,
+      "y1": 0.0,
+      "x2": 3,
+      "y2": 3.0,
+      "thickness": 0.1
+    },
+    {
+      "wall_kind": "inner",
+      "space_a": "entrance_0",
+      "space_type_a": "entrance",
+      "side_a": "south",
+      "edge_type_a": "connectable",
+      "space_b": "bedroom_3",
+      "space_type_b": "bedroom",
+      "side_b": "north",
+      "edge_type_b": "solid",
+      "x1": 0,
+      "y1": 3.0,
+      "x2": 3,
+      "y2": 3.0,
+      "thickness": 0.1
+    },
+    {
+      "wall_kind": "inner",
+      "space_a": "living_room_1",
+      "space_type_a": "living_room",
+      "side_a": "east",
+      "edge_type_a": "connectable",
+      "space_b": "kitchen_2",
+      "space_type_b": "kitchen",
+      "side_b": "west",
+      "edge_type_b": "solid",
+      "x1": 9,
+      "y1": 0.0,
+      "x2": 9,
+      "y2": 6.0,
+      "thickness": 0.1
+    },
+    {
+      "wall_kind": "inner",
+      "space_a": "living_room_1",
+      "space_type_a": "living_room",
+      "side_a": "south",
+      "edge_type_a": "window_preferred",
+      "space_b": "bedroom_4",
+      "space_type_b": "bedroom",
+      "side_b": "north",
+      "edge_type_b": "solid",
+      "x1": 3,
+      "y1": 6.0,
+      "x2": 6,
+      "y2": 6.0,
+      "thickness": 0.1
+    },
+    {
+      "wall_kind": "inner",
+      "space_a": "living_room_1",
+      "space_type_a": "living_room",
+      "side_a": "west",
+      "edge_type_a": "connectable",
+      "space_b": "bedroom_3",
+      "space_type_b": "bedroom",
+      "side_b": "east",
+      "edge_type_b": "connectable",
+      "x1": 3,
+      "y1": 3.0,
+      "x2": 3,
+      "y2": 6.0,
+      "thickness": 0.1
+    },
+    {
+      "wall_kind": "inner",
+      "space_a": "bedroom_3",
+      "space_type_a": "bedroom",
+      "side_a": "east",
+      "edge_type_a": "connectable",
+      "space_b": "bedroom_4",
+      "space_type_b": "bedroom",
+      "side_b": "west",
+      "edge_type_b": "solid",
+      "x1": 3,
+      "y1": 6.0,
+      "x2": 3,
+      "y2": 7.0,
+      "thickness": 0.1
+    }
+  ],
+  "openings": [
+    {
+      "kind": "opening",
+      "placement": "exterior",
+      "space_id": "entrance_0",
+      "space_type": "entrance",
+      "host_side": "north",
+      "source_edge_type": "entry",
+      "x1": 0.9,
+      "y1": 0.0,
+      "x2": 2.1,
+      "y2": 0.0
+    },
+    {
+      "kind": "window",
+      "placement": "exterior",
+      "space_id": "living_room_1",
+      "space_type": "living_room",
+      "host_side": "south",
+      "source_edge_type": "window_preferred",
+      "x1": 6.6,
+      "y1": 6.0,
+      "x2": 8.4,
+      "y2": 6.0
+    },
+    {
+      "kind": "window",
+      "placement": "exterior",
+      "space_id": "bedroom_3",
+      "space_type": "bedroom",
+      "host_side": "south",
+      "source_edge_type": "window_preferred",
+      "x1": 0.6000000000000001,
+      "y1": 7.0,
+      "x2": 2.4,
+      "y2": 7.0
+    },
+    {
+      "kind": "window",
+      "placement": "exterior",
+      "space_id": "bedroom_4",
+      "space_type": "bedroom",
+      "host_side": "south",
+      "source_edge_type": "window_preferred",
+      "x1": 3.6,
+      "y1": 10.0,
+      "x2": 5.4,
+      "y2": 10.0
+    },
+    {
+      "kind": "opening",
+      "placement": "interior",
+      "space_a": "entrance_0",
+      "space_type_a": "entrance",
+      "space_b": "living_room_1",
+      "space_type_b": "living_room",
+      "source_edge_type_a": "solid",
+      "source_edge_type_b": "connectable",
+      "x1": 3,
+      "y1": 1.0,
+      "x2": 3,
+      "y2": 2.0
+    },
+    {
+      "kind": "opening",
+      "placement": "interior",
+      "space_a": "entrance_0",
+      "space_type_a": "entrance",
+      "space_b": "bedroom_3",
+      "space_type_b": "bedroom",
+      "source_edge_type_a": "connectable",
+      "source_edge_type_b": "solid",
+      "x1": 1.0,
+      "y1": 3.0,
+      "x2": 2.0,
+      "y2": 3.0
+    },
+    {
+      "kind": "opening",
+      "placement": "interior",
+      "space_a": "living_room_1",
+      "space_type_a": "living_room",
+      "space_b": "kitchen_2",
+      "space_type_b": "kitchen",
+      "source_edge_type_a": "connectable",
+      "source_edge_type_b": "solid",
+      "x1": 9,
+      "y1": 2.5,
+      "x2": 9,
+      "y2": 3.5
+    },
+    {
+      "kind": "opening",
+      "placement": "interior",
+      "space_a": "living_room_1",
+      "space_type_a": "living_room",
+      "space_b": "bedroom_4",
+      "space_type_b": "bedroom",
+      "source_edge_type_a": "window_preferred",
+      "source_edge_type_b": "solid",
+      "x1": 4.0,
+      "y1": 6.0,
+      "x2": 5.0,
+      "y2": 6.0
+    },
+    {
+      "kind": "opening",
+      "placement": "interior",
+      "space_a": "living_room_1",
+      "space_type_a": "living_room",
+      "space_b": "bedroom_3",
+      "space_type_b": "bedroom",
+      "source_edge_type_a": "connectable",
+      "source_edge_type_b": "connectable",
+      "x1": 3,
+      "y1": 4.0,
+      "x2": 3,
+      "y2": 5.0
+    }
+  ],
+  "labels": [
+    {
+      "space_id": "entrance_0",
+      "text": "ENTRANCE",
+      "x": 1.5,
+      "y": 1.5
+    },
+    {
+      "space_id": "living_room_1",
+      "text": "LIVING",
+      "x": 6.0,
+      "y": 3.0
+    },
+    {
+      "space_id": "kitchen_2",
+      "text": "KITCHEN",
+      "x": 10.5,
+      "y": 3.0
+    },
+    {
+      "space_id": "bedroom_3",
+      "text": "BEDROOM 1",
+      "x": 1.5,
+      "y": 5.0
+    },
+    {
+      "space_id": "bedroom_4",
+      "text": "BEDROOM 2",
+      "x": 4.5,
+      "y": 8.0
+    }
+  ]
+}
