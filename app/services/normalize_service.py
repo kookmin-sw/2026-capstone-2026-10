@@ -68,7 +68,7 @@ def normalize_required_spaces(required_spaces: list[str], aliases: dict[str, Any
         if canonical_space not in concepts:
             continue
 
-        spaces[canonical_space] = count
+        spaces[canonical_space] = spaces.get(canonical_space, 0) + count
 
     return spaces
 
@@ -130,6 +130,11 @@ def normalize_preferences(preferences: list[str], aliases: dict[str, Any]) -> tu
     return relationships, space_traits
 
 
+def canon_road_facing(value: str, aliases: dict[str, Any]) -> str:
+    key = value.strip().lower()
+    return aliases.get("road_facing_aliases", {}).get(key, "south")
+
+
 def normalize_llm_json(raw: dict[str, Any]) -> dict[str, Any]:
     aliases = load_aliases()
     concepts = load_concepts()
@@ -139,6 +144,9 @@ def normalize_llm_json(raw: dict[str, Any]) -> dict[str, Any]:
             "household_size": 0,
             "building_type": "single_family_house",
             "spaces": {}
+        },
+        "site": {
+            "road_facing": "south"
         },
         "relationship": [],
         "space_traits": {}
@@ -155,17 +163,21 @@ def normalize_llm_json(raw: dict[str, Any]) -> dict[str, Any]:
     if household_size is not None:
         result["occupancy"]["household_size"] = int(household_size)
 
-    # 2) 주택 유형
+    # 2) 도로 방향
+    road_facing_raw = raw.get("road_facing", "남쪽")
+    result["site"]["road_facing"] = canon_road_facing(str(road_facing_raw), aliases)
+
+    # 3) 주택 유형
     housing_type = raw.get("housing_type")
     if housing_type:
         if "단독" in str(housing_type) or "single" in str(housing_type).lower():
             result["occupancy"]["building_type"] = "single_family_house"
 
-    # 3) 공간 수량 정규화
+    # 4) 공간 수량 정규화
     required_spaces = raw.get("required_spaces", [])
     result["occupancy"]["spaces"] = normalize_required_spaces(required_spaces, aliases, concepts)
 
-    # 4) 관계 / 특성 정규화
+    # 5) 관계 / 특성 정규화
     preferences = raw.get("preferences", [])
     relationships, space_traits = normalize_preferences(preferences, aliases)
 

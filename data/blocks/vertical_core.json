@@ -1,32 +1,41 @@
 {
-    "id": "private_M1",
-    "family": "private",
+    "id": "vertical_core_M1",
+    "family": "vertical_core",
     "space_role_candidates": [
-        "bedroom",
-        "guest_room"
+        "vertical_core",
+        "staircase",
+        "elevator_core"
     ],
     "width": 3,
-    "depth": 4,
+    "depth": 3,
     "height": 3.0,
-    "zone": "private",
-    "rotatable": true,
+    "zone": "public",
+    "rotatable": false,
     "stackable": true,
-    "fixed_core": false,
-    "exterior_required": true,
+    "fixed_core": true,
+    "exterior_required": false,
     "service_side": null,
+    "natural_light": "none",
+    "ventilation": "natural",
+    "plumbing_required": false,
+    "acoustic_insulation": "medium",
+    "preferred_orientation": "any",
     "edges": {
-        "north": "solid",
-        "south": "window_preferred",
+        "north": "connectable",
+        "south": "connectable",
         "east": "connectable",
-        "west": "solid"
+        "west": "connectable"
     },
     "connectable_to_families": [
+        "entrance_circulation",
+        "open_public",
         "connector",
         "private",
+        "work_flexible",
         "wet_core"
     ],
     "interior_template_options": [
-        "bedroom_basic",
-        "bedroom_storage"
+        "stair_straight",
+        "stair_u_turn"
     ]
 }

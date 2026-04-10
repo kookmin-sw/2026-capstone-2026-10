@@ -16,6 +16,16 @@
             "score": 8
         },
         {
+            "from": "vertical_core",
+            "to": "entrance",
+            "score": 7
+        },
+        {
+            "from": "vertical_core",
+            "to": "living_room",
+            "score": 6
+        },
+        {
             "from": "connector",
             "to": "bedroom",
             "score": 6
@@ -29,6 +39,31 @@
             "from": "bathroom",
             "to": "bedroom",
             "score": 7
+        },
+        {
+            "from": "bathroom",
+            "to": "master_bedroom",
+            "score": 9
+        },
+        {
+            "from": "bathroom",
+            "to": "child_bedroom",
+            "score": 6
+        },
+        {
+            "from": "connector",
+            "to": "master_bedroom",
+            "score": 6
+        },
+        {
+            "from": "connector",
+            "to": "child_bedroom",
+            "score": 6
+        },
+        {
+            "from": "master_bedroom",
+            "to": "child_bedroom",
+            "score": 4
         }
     ],
     "separation_preferences": [
@@ -43,6 +78,16 @@
             "score": 5
         },
         {
+            "from": "master_bedroom",
+            "to": "public_zone",
+            "score": 7
+        },
+        {
+            "from": "child_bedroom",
+            "to": "public_zone",
+            "score": 5
+        },
+        {
             "from": "bathroom",
             "to": "public_zone",
             "score": 4
@@ -52,6 +97,8 @@
         "living_room": "outer_edge",
         "workspace": "quiet_inner_zone",
         "bedroom": "private_inner_zone",
+        "master_bedroom": "private_inner_zone",
+        "child_bedroom": "private_inner_zone",
         "bathroom": "service_inner_zone",
         "vertical_core": "core_zone",
         "connector": "connector_zone"

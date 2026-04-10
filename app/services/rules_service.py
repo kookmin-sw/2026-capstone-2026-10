@@ -122,6 +122,7 @@ def generate_placement_rules(order: dict[str, Any]) -> dict[str, Any]:
     spaces = order["occupancy"]["spaces"]
     relationship_list = order.get("relationship", [])
     space_traits = order.get("space_traits", {})
+    road_facing = order.get("site", {}).get("road_facing", "south")
 
     # 1) required blocks
     required_blocks = build_required_blocks(spaces, concepts)
@@ -219,7 +220,8 @@ def generate_placement_rules(order: dict[str, Any]) -> dict[str, Any]:
         "separation_preferences": separation_preferences,
         "edge_preferences": edge_preferences,
         "hard_constraints": hard_constraints,
-        "soft_constraints": soft_constraints
+        "soft_constraints": soft_constraints,
+        "road_facing": road_facing,
     }
 
     return rules

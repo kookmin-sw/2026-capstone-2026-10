@@ -2,7 +2,9 @@
     "id": "bathroom_core_S1",
     "family": "wet_core",
     "space_role_candidates": [
-        "bathroom"
+        "bathroom",
+        "laundry",
+        "utility_room"
     ],
     "width": 3,
     "depth": 3,
@@ -11,13 +13,18 @@
     "rotatable": true,
     "stackable": true,
     "fixed_core": true,
-    "exterior_required": false,
+    "exterior_required": true,
     "service_side": "south",
+    "natural_light": "preferred",
+    "ventilation": "natural",
+    "plumbing_required": true,
+    "acoustic_insulation": "high",
+    "preferred_orientation": "east",
     "edges": {
         "north": "connectable",
         "south": "service",
-        "east": "solid",
-        "west": "solid"
+        "east": "exterior",
+        "west": "exterior"
     },
     "connectable_to_families": [
         "private",
@@ -25,6 +32,7 @@
         "wet_core"
     ],
     "interior_template_options": [
-        "bathroom_basic"
+        "bathroom_basic",
+        "bathroom_laundry"
     ]
 }

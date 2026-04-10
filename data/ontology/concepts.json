@@ -26,6 +26,24 @@
             "quiet_preferred": true
         }
     },
+    "master_bedroom": {
+        "zone": "private",
+        "default_count": 1,
+        "traits": {
+            "daylight_preferred": true,
+            "privacy_preferred": true,
+            "quiet_preferred": true
+        }
+    },
+    "child_bedroom": {
+        "zone": "private",
+        "default_count": 1,
+        "traits": {
+            "daylight_preferred": true,
+            "privacy_preferred": true,
+            "quiet_preferred": true
+        }
+    },
     "workspace": {
         "zone": "semi_private",
         "default_count": 1,

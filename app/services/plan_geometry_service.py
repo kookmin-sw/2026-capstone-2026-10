@@ -24,6 +24,8 @@ LABEL_NAME_MAP = {
     "kitchen": "KITCHEN",
     "workspace": "WORK",
     "bedroom": "BEDROOM",
+    "master_bedroom": "MASTER",
+    "child_bedroom": "CHILD BR",
     "bathroom": "BATH",
     "connector": "CONNECTOR",
     "vertical_core": "CORE",
@@ -33,14 +35,21 @@ LABEL_NAME_MAP = {
 ALLOWED_INTERNAL_CONNECTIONS = {
     frozenset(("entrance", "living_room")),
     frozenset(("entrance", "bedroom")),
+    frozenset(("entrance", "master_bedroom")),
     frozenset(("living_room", "kitchen")),
     frozenset(("living_room", "bedroom")),
+    frozenset(("living_room", "master_bedroom")),
     frozenset(("living_room", "workspace")),
     frozenset(("bedroom", "workspace")),
+    frozenset(("master_bedroom", "bathroom")),
+    frozenset(("master_bedroom", "child_bedroom")),
+    frozenset(("child_bedroom", "bathroom")),
     frozenset(("connector", "entrance")),
     frozenset(("connector", "living_room")),
     frozenset(("connector", "kitchen")),
     frozenset(("connector", "bedroom")),
+    frozenset(("connector", "master_bedroom")),
+    frozenset(("connector", "child_bedroom")),
     frozenset(("connector", "workspace")),
     frozenset(("connector", "bathroom")),
     frozenset(("connector", "vertical_core")),
@@ -448,8 +457,10 @@ def build_outer_openings(outer_edges: list[dict[str, Any]]) -> list[dict[str, An
                 }
             )
 
-        elif edge_type == "window_preferred":
-            target = min(WINDOW_DEFAULT_WIDTH, max(1.2, segment_length(edge) * 0.6))
+        elif edge_type in ("window_preferred", "window_required"):
+            # window_required: 채광 필수 — 벽 길이의 더 넓은 비율로 창문 생성
+            ratio = 0.8 if edge_type == "window_required" else 0.6
+            target = min(WINDOW_DEFAULT_WIDTH, max(1.2, segment_length(edge) * ratio))
             segment = centered_segment_on_edge(edge, target, min_margin=0.3)
             if segment is None:
                 continue
@@ -458,6 +469,7 @@ def build_outer_openings(outer_edges: list[dict[str, Any]]) -> list[dict[str, An
                 {
                     "kind": "window",
                     "placement": "exterior",
+                    "required": edge_type == "window_required",
                     "space_id": edge["space_id"],
                     "space_type": edge["space_type"],
                     "host_side": edge["side"],
@@ -468,6 +480,9 @@ def build_outer_openings(outer_edges: list[dict[str, Any]]) -> list[dict[str, An
                     "y2": y2,
                 }
             )
+
+        # exterior: 외벽이지만 창문 없음 (욕실 측면, 주방 서비스 벽 등)
+        # solid, exterior 모두 opening 없이 그대로 외벽으로 렌더링됨
 
     return openings
 
@@ -482,14 +497,14 @@ def should_make_inner_opening(wall: dict[str, Any]) -> bool:
     space_type_a = wall["space_type_a"]
     space_type_b = wall["space_type_b"]
 
-    if edge_type_a == "service" or edge_type_b == "service":
+    # service 벽 또는 채광 필수 벽은 내부 개구부 불가
+    no_opening_types = {"service", "window_required", "exterior"}
+    if edge_type_a in no_opening_types or edge_type_b in no_opening_types:
         return False
 
     if not is_allowed_internal_connection(space_type_a, space_type_b):
         return False
 
-    # y축 압축 이후에는 원래 edge semantics가 바뀌므로
-    # 허용된 공간 조합이면 opening 허용
     return True
 
 

@@ -1,32 +1,38 @@
 {
-    "id": "private_M1",
-    "family": "private",
+    "id": "work_flexible_M1",
+    "family": "work_flexible",
     "space_role_candidates": [
-        "bedroom",
-        "guest_room"
+        "workspace",
+        "study",
+        "home_office"
     ],
     "width": 3,
     "depth": 4,
     "height": 3.0,
-    "zone": "private",
+    "zone": "semi_private",
     "rotatable": true,
     "stackable": true,
     "fixed_core": false,
     "exterior_required": true,
     "service_side": null,
+    "natural_light": "preferred",
+    "ventilation": "natural",
+    "plumbing_required": false,
+    "acoustic_insulation": "high",
+    "preferred_orientation": "north",
     "edges": {
-        "north": "solid",
-        "south": "window_preferred",
+        "north": "window_preferred",
+        "south": "connectable",
         "east": "connectable",
-        "west": "solid"
+        "west": "connectable"
     },
     "connectable_to_families": [
         "connector",
         "private",
-        "wet_core"
+        "open_public"
     ],
     "interior_template_options": [
-        "bedroom_basic",
-        "bedroom_storage"
+        "workspace_basic",
+        "workspace_library"
     ]
 }

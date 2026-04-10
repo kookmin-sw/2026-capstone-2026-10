@@ -41,6 +41,7 @@ app.add_middleware(
 class RawInput(BaseModel):
     family_type: str = ""
     housing_type: str = "단독주택"
+    road_facing: str = "남쪽"
     required_spaces: list[str] = []
     preferences: list[str] = []
 

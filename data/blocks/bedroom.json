@@ -14,11 +14,16 @@
     "fixed_core": false,
     "exterior_required": true,
     "service_side": null,
+    "natural_light": "required",
+    "ventilation": "natural",
+    "plumbing_required": false,
+    "acoustic_insulation": "high",
+    "preferred_orientation": "south",
     "edges": {
-        "north": "solid",
-        "south": "window_preferred",
+        "north": "exterior",
+        "south": "window_required",
         "east": "connectable",
-        "west": "solid"
+        "west": "exterior"
     },
     "connectable_to_families": [
         "connector",

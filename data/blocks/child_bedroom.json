@@ -1,15 +1,14 @@
 {
-    "id": "open_public_M1",
-    "family": "open_public",
+    "id": "private_child_S1",
+    "family": "private",
     "space_role_candidates": [
-        "living_room",
-        "family_room",
-        "dining"
+        "child_bedroom",
+        "kids_room"
     ],
-    "width": 6,
-    "depth": 6,
+    "width": 3,
+    "depth": 3,
     "height": 3.0,
-    "zone": "public",
+    "zone": "private",
     "rotatable": true,
     "stackable": true,
     "fixed_core": false,
@@ -18,22 +17,21 @@
     "natural_light": "required",
     "ventilation": "natural",
     "plumbing_required": false,
-    "acoustic_insulation": "low",
+    "acoustic_insulation": "high",
     "preferred_orientation": "south",
     "edges": {
-        "north": "connectable",
+        "north": "exterior",
         "south": "window_required",
         "east": "connectable",
         "west": "connectable"
     },
     "connectable_to_families": [
-        "entrance_circulation",
-        "open_public",
-        "wet_core",
-        "connector"
+        "connector",
+        "private",
+        "wet_core"
     ],
     "interior_template_options": [
-        "living_open",
-        "living_dining"
+        "child_bedroom_basic",
+        "child_bedroom_study"
     ]
 }

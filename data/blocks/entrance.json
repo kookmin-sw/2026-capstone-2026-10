@@ -13,6 +13,11 @@
     "fixed_core": true,
     "exterior_required": true,
     "service_side": null,
+    "natural_light": "preferred",
+    "ventilation": "natural",
+    "plumbing_required": false,
+    "acoustic_insulation": "low",
+    "preferred_orientation": "any",
     "edges": {
         "north": "entry",
         "south": "connectable",
