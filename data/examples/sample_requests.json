@@ -1,117 +1,129 @@
 [
-    {
-        "id": "case_001",
-        "family_type": "4인 가족",
-        "housing_type": "단독주택",
-        "road_facing": "남쪽",
-        "required_spaces": [
-            "침실 3개",
-            "거실",
-            "주방",
-            "작업실 1개"
-        ],
-        "preferences": [
-            "거실은 햇빛이 잘 드는 밝은 공간",
-            "주방과 거실은 서로 연결",
-            "작업실은 조용한 위치"
-        ]
-    },
-    {
-        "id": "case_002",
-        "family_type": "3인 가족",
-        "housing_type": "단독주택",
-        "road_facing": "남쪽",
-        "required_spaces": [
-            "침실 2개",
-            "거실",
-            "주방"
-        ],
-        "preferences": [
-            "거실은 밝았으면 좋겠어요",
-            "주방과 거실은 연결됐으면 좋겠어요"
-        ]
-    },
-    {
-        "id": "case_003",
-        "family_type": "1인 가구",
-        "housing_type": "단독주택",
-        "road_facing": "동쪽",
-        "required_spaces": [
-            "침실 1개",
-            "거실",
-            "서재 1개"
-        ],
-        "preferences": [
-            "서재는 조용한 위치면 좋겠어요",
-            "거실은 햇빛이 잘 드는 공간이면 좋겠어요"
-        ]
-    },
-    {
-        "id": "case_004",
-        "family_type": "부부와 아이 둘",
-        "housing_type": "단독주택",
-        "road_facing": "남쪽",
-        "required_spaces": [
-            "침실 3개",
-            "거실",
-            "주방",
-            "작업실 1개"
-        ],
-        "preferences": [
-            "주방과 거실이 붙어 있으면 좋겠어요",
-            "작업실은 조용하고 프라이버시가 있었으면 좋겠어요"
-        ]
-    },
-    {
-        "id": "case_005",
-        "family_type": "2인 가족",
-        "housing_type": "단독주택",
-        "road_facing": "북쪽",
-        "required_spaces": [
-            "침실 2개",
-            "거실",
-            "부엌"
-        ],
-        "preferences": [
-            "부엌과 거실이 연결되면 좋겠어요",
-            "거실은 밝은 분위기면 좋겠어요"
-        ]
-    },
-    {
-        "id": "case_006",
-        "family_type": "4인 가족",
-        "housing_type": "단독주택",
-        "road_facing": "남쪽",
-        "required_spaces": [
-            "침실 3개",
-            "거실",
-            "주방",
-            "욕실 2개"
-        ],
-        "preferences": [
-            "거실은 밝은 공간이면 좋겠어요",
-            "주방과 거실은 연결되면 좋겠어요",
-            "욕실은 침실과 가까우면 좋겠어요"
-        ]
-    },
-    {
-        "id": "case_007",
-        "family_type": "5인 가족",
-        "housing_type": "단독주택",
-        "road_facing": "서쪽",
-        "required_spaces": [
-            "침실 3개",
-            "거실",
-            "주방",
-            "계단 1개",
-            "복도 1개",
-            "욕실 2개",
-            "작업실 1개"
-        ],
-        "preferences": [
-            "작업실은 조용한 위치면 좋겠어요",
-            "거실은 밝았으면 좋겠어요",
-            "주방은 거실과 연결되면 좋겠어요"
-        ]
-    }
+  {
+    "id": "case_001",
+    "family_type": "single resident",
+    "housing_type": "compact house",
+    "road_facing": "south",
+    "required_spaces": [
+      "bedroom 1",
+      "living_room 1",
+      "kitchen",
+      "workspace 1"
+    ],
+    "preferences": [
+      "living room and kitchen should feel open to each other",
+      "workspace should be quiet and slightly separated",
+      "bedroom should stay away from the entrance"
+    ]
+  },
+  {
+    "id": "case_002",
+    "family_type": "couple",
+    "housing_type": "small house",
+    "road_facing": "east",
+    "required_spaces": [
+      "master_bedroom 1",
+      "living_room 1",
+      "kitchen",
+      "bathroom 1"
+    ],
+    "preferences": [
+      "entrance should face the road",
+      "kitchen should be close to living room",
+      "bathroom should be near the bedroom"
+    ]
+  },
+  {
+    "id": "case_003",
+    "family_type": "family with one child",
+    "housing_type": "single family house",
+    "road_facing": "west",
+    "required_spaces": [
+      "master_bedroom 1",
+      "child_bedroom 1",
+      "living_room 1",
+      "kitchen",
+      "bathroom 1"
+    ],
+    "preferences": [
+      "child bedroom should be near the master bedroom",
+      "living room should sit between entrance and private rooms",
+      "kitchen should stay connected to the living room"
+    ]
+  },
+  {
+    "id": "case_004",
+    "family_type": "work from home couple",
+    "housing_type": "single family house",
+    "road_facing": "north",
+    "required_spaces": [
+      "bedroom 2",
+      "living_room 1",
+      "kitchen",
+      "workspace 2",
+      "bathroom 1"
+    ],
+    "preferences": [
+      "two workspaces should not be attached directly to the entrance",
+      "bedrooms should be private and quiet",
+      "bathroom should be accessible from the private side"
+    ]
+  },
+  {
+    "id": "case_005",
+    "family_type": "four person family",
+    "housing_type": "single family house",
+    "road_facing": "south",
+    "required_spaces": [
+      "master_bedroom 1",
+      "child_bedroom 2",
+      "living_room 1",
+      "kitchen",
+      "bathroom 2"
+    ],
+    "preferences": [
+      "children bedrooms should be near each other",
+      "bathrooms should be near the bedroom cluster",
+      "living room and kitchen should form the public zone"
+    ]
+  },
+  {
+    "id": "case_006",
+    "family_type": "large family",
+    "housing_type": "courtyard house prototype",
+    "road_facing": "east",
+    "required_spaces": [
+      "bedroom 4",
+      "living_room 1",
+      "kitchen",
+      "workspace 1",
+      "bathroom 2",
+      "corridor 1"
+    ],
+    "preferences": [
+      "corridor should organize the private rooms",
+      "bedrooms should not all sit on the same side if possible",
+      "bathrooms should stay near the bedroom cluster"
+    ]
+  },
+  {
+    "id": "case_007",
+    "family_type": "mixed use family home",
+    "housing_type": "two level house prototype",
+    "road_facing": "west",
+    "required_spaces": [
+      "bedroom 3",
+      "living_room 1",
+      "kitchen",
+      "workspace 1",
+      "bathroom 2",
+      "corridor 1",
+      "stair 1"
+    ],
+    "preferences": [
+      "stair should connect through the corridor",
+      "workspace should be quiet but not too far from living room",
+      "bathrooms should stay near bedrooms and vertical core"
+    ]
+  }
 ]

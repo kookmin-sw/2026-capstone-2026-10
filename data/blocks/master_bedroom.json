@@ -5,8 +5,8 @@
         "master_bedroom",
         "primary_bedroom"
     ],
-    "width": 4,
-    "depth": 5,
+    "width": 7,
+    "depth": 8,
     "height": 3.0,
     "zone": "private",
     "rotatable": true,

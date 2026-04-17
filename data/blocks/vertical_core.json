@@ -7,7 +7,7 @@
         "elevator_core"
     ],
     "width": 3,
-    "depth": 3,
+    "depth": 4,
     "height": 3.0,
     "zone": "public",
     "rotatable": false,

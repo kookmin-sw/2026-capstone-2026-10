@@ -132,6 +132,26 @@ def normalize_preferences(preferences: list[str], aliases: dict[str, Any]) -> tu
 
 def canon_road_facing(value: str, aliases: dict[str, Any]) -> str:
     key = value.strip().lower()
+    direct = {
+        "남쪽": "south",
+        "남": "south",
+        "남향": "south",
+        "south": "south",
+        "북쪽": "north",
+        "북": "north",
+        "북향": "north",
+        "north": "north",
+        "동쪽": "east",
+        "동": "east",
+        "동향": "east",
+        "east": "east",
+        "서쪽": "west",
+        "서": "west",
+        "서향": "west",
+        "west": "west",
+    }
+    if key in direct:
+        return direct[key]
     return aliases.get("road_facing_aliases", {}).get(key, "south")
 
 

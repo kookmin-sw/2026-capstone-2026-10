@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import './App.css';
+import ThreeExteriorViewer from './ThreeExteriorViewer';
 
 // ==========================================
 // SVG 도면 생성을 위한 헬퍼 함수 및 상수
@@ -58,12 +59,12 @@ function buildFallbackSvg(orderJson = {}) {
       <svg viewBox="0 0 900 600" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid meet">
         <defs>
           <pattern id="grid" width="24" height="24" patternUnits="userSpaceOnUse">
-            <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#e8e1d8" stroke-width="1"/>
+            <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#eef1f4" stroke-width="0.7"/>
           </pattern>
         </defs>
         <rect x="0" y="0" width="900" height="600" fill="#ffffff"/>
-        <rect x="18" y="18" width="864" height="564" rx="28" fill="url(#grid)" stroke="#111111" stroke-width="2"/>
-        <text x="450" y="300" text-anchor="middle" font-family="IBM Plex Sans, Arial, sans-serif" font-size="16" font-weight="600" fill="#888888" letter-spacing="1">
+        <rect x="0" y="0" width="900" height="600" fill="url(#grid)" opacity="0.35"/>
+        <text x="450" y="300" text-anchor="middle" font-family="IBM Plex Sans, Arial, sans-serif" font-size="15" font-weight="500" fill="#a7adb5" letter-spacing="0.3">
           대화를 통해 설계 요구사항을 모두 수집하면 도면이 생성됩니다.
         </text>
       </svg>
@@ -125,6 +126,76 @@ function buildFallbackSvg(orderJson = {}) {
     </svg>
   `;
 }
+
+function parseSvgLength(value) {
+  if (!value || String(value).includes('%')) return null;
+  const parsed = parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function getSvgDimensions(svgString, fallbackW = 900, fallbackH = 600) {
+  const parser = new DOMParser();
+  const svgEl = parser.parseFromString(svgString, 'image/svg+xml').querySelector('svg');
+  const viewBox = svgEl?.getAttribute('viewBox')?.trim().split(/\s+/).map(Number);
+  const vbW = viewBox?.[2];
+  const vbH = viewBox?.[3];
+  return {
+    width: parseSvgLength(svgEl?.getAttribute('width')) || vbW || fallbackW,
+    height: parseSvgLength(svgEl?.getAttribute('height')) || vbH || fallbackH,
+    viewBox: svgEl?.getAttribute('viewBox') || `0 0 ${vbW || fallbackW} ${vbH || fallbackH}`,
+  };
+}
+
+function normalizeSvgForDisplay(svgString) {
+  if (!svgString) return svgString;
+  const { viewBox } = getSvgDimensions(svgString);
+  let svg = setSvgAttribute(svgString, 'width', '100%');
+  svg = setSvgAttribute(svg, 'height', '100%');
+  if (!/\bviewBox="/.test(svg)) {
+    svg = svg.replace(/<svg\b/, `<svg viewBox="${viewBox}"`);
+  }
+  if (!/\bpreserveAspectRatio="/.test(svg)) {
+    svg = svg.replace(/<svg\b/, '<svg preserveAspectRatio="xMidYMid meet"');
+  }
+  return svg.replace(/<svg\b/, '<svg style="width:100%;height:100%;display:block;"');
+}
+
+function setSvgAttribute(svgString, name, value) {
+  const attrRegex = new RegExp(`(<svg\\b[^>]*?)\\b${name}="[^"]*"`);
+  if (attrRegex.test(svgString)) {
+    return svgString.replace(attrRegex, `$1${name}="${value}"`);
+  }
+  return svgString.replace(/<svg\b/, `<svg ${name}="${value}"`);
+}
+
+function normalizeSvgForRaster(svgString, width, height) {
+  if (!svgString) return svgString;
+  const { viewBox } = getSvgDimensions(svgString, width, height);
+  let svg = setSvgAttribute(svgString, 'width', String(width));
+  svg = setSvgAttribute(svg, 'height', String(height));
+  if (!/\bviewBox="/.test(svg)) {
+    svg = setSvgAttribute(svg, 'viewBox', viewBox);
+  }
+  if (!/\bpreserveAspectRatio="/.test(svg)) {
+    svg = setSvgAttribute(svg, 'preserveAspectRatio', 'xMidYMid meet');
+  }
+  return svg;
+}
+
+function svgToDataUrl(svgString) {
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svgString)}`;
+}
+
+function defaultExteriorStyle() {
+  return {
+    wallColor: '#F0EBE1',
+    roofColor: '#4F5B52',
+    accentColor: '#7A6550',
+    roofType: 'flat',
+    style: 'modern',
+    hasChimney: false,
+  };
+}
 // ==========================================
 
 function App() {
@@ -141,6 +212,15 @@ function App() {
   const [renderProgress, setRenderProgress] = useState(0);
   const progressTimerRef = useRef(null);
 
+  // 하단 탭 (3D RENDER / 3D EXTERIOR)
+  const [rightTab, setRightTab] = useState('3d');
+
+  // 3D 외관 - 레퍼런스 이미지 & 스타일
+  const [refImages, setRefImages] = useState([null, null, null]);
+  const [exteriorStyle, setExteriorStyle] = useState(null);
+  const [isAnalyzingStyle, setIsAnalyzingStyle] = useState(false);
+  const [planGeometry, setPlanGeometry] = useState(null);
+
   const chatEndRef = useRef(null);
 
   useEffect(() => {
@@ -152,11 +232,8 @@ function App() {
   }, [orderJson, svgOverride]);
 
   // 표시용: 픽셀 width/height → 100% (viewBox는 유지해 비율 보존)
-  const displaySvg = useMemo(() => {
-    if (!svgMarkup) return svgMarkup;
-    return svgMarkup
-      .replace(/(<svg\b[^>]*?)\bwidth="[\d.]+"/g, '$1width="100%"')
-      .replace(/(<svg\b[^>]*?)\bheight="[\d.]+"/g, '$1height="100%"');
+  const displaySvgUrl = useMemo(() => {
+    return svgToDataUrl(normalizeSvgForDisplay(svgMarkup));
   }, [svgMarkup]);
 
   // 구글 Gemini API 키 (주의: 운영 환경에서는 백엔드로 분리해야 합니다)
@@ -167,10 +244,7 @@ function App() {
 
   // SVG 문자열 → PNG base64 변환 (멀티모달 전송용)
   const svgToBase64Png = (svgString) => new Promise((resolve, reject) => {
-    const parser = new DOMParser();
-    const svgEl = parser.parseFromString(svgString, 'image/svg+xml').querySelector('svg');
-    const w = parseFloat(svgEl?.getAttribute('width')) || 800;
-    const h = parseFloat(svgEl?.getAttribute('height')) || 640;
+    const { width: w, height: h } = getSvgDimensions(svgString, 800, 640);
 
     const canvas = document.createElement('canvas');
     canvas.width = w;
@@ -178,7 +252,7 @@ function App() {
     const ctx = canvas.getContext('2d');
 
     const img = new Image();
-    const blob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const blob = new Blob([normalizeSvgForRaster(svgString, w, h)], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     img.onload = () => {
       ctx.fillStyle = '#ffffff';
@@ -320,6 +394,7 @@ Place only the furniture listed for each room type present:
       "reply_message": "사용자에게 할 대답이나 질문",
       "family_type": "가족 구성 (예: 4인 가족)",
       "housing_type": "단독주택",
+      "road_facing": "도로 방향. 남쪽/북쪽/동쪽/서쪽 중 하나",
       "required_spaces": ["공간명 개수 형식 배열. 예: 침실 2개, 거실, 주방, 화장실 1개"],
       "preferences": ["사용자의 배치/분위기 선호를 문장 배열로. 예: 거실은 밝고 햇빛이 잘 들어야 한다"]
     }
@@ -334,13 +409,22 @@ Place only the furniture listed for each room type present:
     - "complete": 3가지 정보가 모두 수집됐을 때. reply_message에 완료 인사를 남기고 나머지 필드를 모두 채워 반환하세요.
   `;
 
+  const ROAD_FACING_REQUIREMENT = `
+    추가 필수 조건:
+    - 도로가 어느 방향에 접하는지 반드시 물어보세요. 선택지는 남쪽, 북쪽, 동쪽, 서쪽입니다.
+    - road_facing 필드를 JSON에 반드시 포함하세요.
+    - road_facing 값은 "남쪽", "북쪽", "동쪽", "서쪽" 중 하나로 작성하세요.
+    - 공간/관계/분위기 정보가 있어도 도로 방향이 없으면 status는 "interviewing"입니다.
+    - complete가 되려면 required_spaces, preferences, road_facing이 모두 있어야 합니다.
+  `;
+
   const fetchLLMResponse = async (userMessage, history) => {
     try {
       const historyContext = history
         .map(chat => `${chat.sender === 'USER' ? '사용자' : 'AI'}: ${chat.text}`)
         .join('\n');
 
-      const fullPrompt = `${SYSTEM_PROMPT}\n\n[지금까지의 대화 내역]\n${historyContext}\n사용자: ${userMessage}\nAI:`;
+      const fullPrompt = `${SYSTEM_PROMPT}\n\n${ROAD_FACING_REQUIREMENT}\n\n[지금까지의 대화 내역]\n${historyContext}\n사용자: ${userMessage}\nAI:`;
 
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`, {
         method: 'POST',
@@ -393,6 +477,7 @@ Place only the furniture listed for each room type present:
         const pipelineInput = {
           family_type: aiData.family_type || "",
           housing_type: aiData.housing_type || "단독주택",
+          road_facing: aiData.road_facing || "남쪽",
           required_spaces: aiData.required_spaces || [],
           preferences: aiData.preferences || [],
         };
@@ -410,13 +495,14 @@ Place only the furniture listed for each room type present:
             body: JSON.stringify(pipelineInput),
           });
           if (svgRes.ok) {
-            const svgText = await svgRes.text();
-            setSvgOverride(svgText);
+            const resData = await svgRes.json();
+            setSvgOverride(resData.svg);
+            setPlanGeometry(resData.plan_geometry);
             setChatHistory((prev) => [
               ...prev,
               { sender: 'AI', text: '2D 도면이 생성되었습니다! 3D 렌더링을 생성하는 중입니다...' }
             ]);
-            generate3dRender(pipelineInput, svgText);
+            generate3dRender(pipelineInput, resData.svg);
           } else {
             const err = await svgRes.json();
             setChatHistory((prev) => [
@@ -464,17 +550,7 @@ Place only the furniture listed for each room type present:
     if (!svgMarkup) return;
 
     // SVG 실제 크기 파싱 (width/height 속성 또는 viewBox 기준)
-    const parser = new DOMParser();
-    const svgDoc = parser.parseFromString(svgMarkup, 'image/svg+xml');
-    const svgEl = svgDoc.querySelector('svg');
-    let svgW = parseFloat(svgEl?.getAttribute('width'));
-    let svgH = parseFloat(svgEl?.getAttribute('height'));
-
-    if (!svgW || !svgH) {
-      const vb = svgEl?.getAttribute('viewBox')?.split(/\s+/).map(Number);
-      svgW = vb?.[2] || 900;
-      svgH = vb?.[3] || 600;
-    }
+    const { width: svgW, height: svgH } = getSvgDimensions(svgMarkup);
 
     const scale = 2; // 2× 고해상도
     const canvas = document.createElement('canvas');
@@ -485,7 +561,7 @@ Place only the furniture listed for each room type present:
     const img = new Image();
     img.width = svgW * scale;
     img.height = svgH * scale;
-    const svgBlob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
+    const svgBlob = new Blob([normalizeSvgForRaster(svgMarkup, svgW, svgH)], { type: 'image/svg+xml;charset=utf-8' });
     const url = URL.createObjectURL(svgBlob);
 
     img.onload = () => {
@@ -572,6 +648,78 @@ Place only the furniture listed for each room type present:
     const url = URL.createObjectURL(blob);
     const printWindow = window.open(url, '_blank');
     printWindow.addEventListener('load', () => URL.revokeObjectURL(url));
+  };
+
+  // ── 레퍼런스 이미지 업로드 ──
+  const handleRefImageUpload = (index, file) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const full = e.target.result;
+      const base64 = full.split(',')[1];
+      setRefImages(prev => {
+        const next = [...prev];
+        next[index] = { base64, preview: full, mimeType: file.type || 'image/jpeg' };
+        return next;
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // ── Gemini 레퍼런스 스타일 분석 ──
+  const analyzeReferenceImages = async () => {
+    const uploaded = refImages.filter(Boolean);
+    if (!uploaded.length) {
+      setExteriorStyle(defaultExteriorStyle());
+      return;
+    }
+    setIsAnalyzingStyle(true);
+    try {
+      const imgParts = uploaded.map(img => ({
+        inlineData: { mimeType: img.mimeType, data: img.base64 },
+      }));
+      imgParts.push({
+        text: `이 건축물 외관 레퍼런스 이미지들을 분석해 디자인 스타일을 추출하세요.
+반드시 아래 JSON 형식으로만 응답하세요 (설명 없이 JSON만):
+{
+  "wallColor": "#F0EBE1",
+  "roofColor": "#5C4B35",
+  "accentColor": "#7A6550",
+  "roofType": "gable",
+  "style": "traditional",
+  "hasChimney": false
+}
+roofType: "gable" | "flat" | "hip"
+style: "modern" | "traditional" | "minimalist" | "rustic" | "contemporary"
+색상은 이미지에서 추출한 실제 hex 코드로 작성하세요.`,
+      });
+
+      const res = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ role: 'user', parts: imgParts }],
+            generationConfig: { responseMimeType: 'application/json' },
+          }),
+        }
+      );
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message);
+      let text = data.candidates[0].content.parts[0].text;
+      text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+      setExteriorStyle(JSON.parse(text));
+    } catch (e) {
+      console.error('스타일 분석 실패:', e);
+      // 분석 실패 시 기본값 적용
+      setExteriorStyle({
+        wallColor: '#F0EBE1', roofColor: '#5C4B35', accentColor: '#7A6550',
+        roofType: 'gable', style: 'traditional', hasChimney: false,
+      });
+    } finally {
+      setIsAnalyzingStyle(false);
+    }
   };
 
   // 4. PDF 다운로드 (도면만 새 창에서 인쇄)
@@ -714,10 +862,10 @@ Place only the furniture listed for each room type present:
         </div>
       </div>
 
-      {/* 우측: 뷰어 패널 구역 (위/아래 반반) */}
-      <div className="right-panels" style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: '8px' }}>
+      {/* 우측: 2D 고정(상단) + 3D 탭(하단) */}
+      <div className="right-panels">
 
-        {/* 상단: 2D 도면 */}
+        {/* ── 상단: 2D PLAN (항상 표시) ── */}
         <div className="panel svg-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div className="json-header">
             <div className="mac-dots">
@@ -727,53 +875,155 @@ Place only the furniture listed for each room type present:
             </div>
             <span className="json-title">2D PLAN</span>
             <div className="export-toolbar">
-              <button onClick={downloadPNG} className="export-btn" title="PNG 다운로드">PNG</button>
-              <button onClick={downloadSVG} className="export-btn" title="SVG 다운로드">SVG</button>
-              <button onClick={downloadPDF} className="export-btn" title="PDF 인쇄">PDF</button>
+              <button onClick={downloadPNG} className="export-btn">PNG</button>
+              <button onClick={downloadSVG} className="export-btn">SVG</button>
+              <button onClick={downloadPDF} className="export-btn">PDF</button>
             </div>
           </div>
-          <div className="svg-content" style={{ flex: 1, padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', borderRadius: '0 0 10px 10px' }}>
-            <div dangerouslySetInnerHTML={{ __html: displaySvg }} style={{ width: '100%', height: '100%', overflow: 'hidden' }} />
+          <div className="svg-content" style={{ flex: 1, padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', borderRadius: '0 0 10px 10px' }}>
+            <img
+              src={displaySvgUrl}
+              alt="2D floor plan"
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                display: 'block',
+              }}
+            />
           </div>
         </div>
 
-        {/* 하단: 3D 렌더링 */}
+        {/* ── 하단: 3D 탭 패널 ── */}
         <div className="panel svg-panel" style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <div className="json-header">
-            <div className="mac-dots">
+          {/* 탭 헤더 */}
+          <div className="json-header" style={{ gap: '0' }}>
+            <div className="mac-dots" style={{ marginRight: '12px' }}>
               <div className="mac-dot red"></div>
               <div className="mac-dot yellow"></div>
               <div className="mac-dot green"></div>
             </div>
-            <span className="json-title">3D RENDER</span>
-            <div className="export-toolbar">
-              <button onClick={download3dPNG} className="export-btn" title="PNG 다운로드" disabled={!image3dUrl}>PNG</button>
-              <button onClick={download3dSVG} className="export-btn" title="SVG 다운로드" disabled={!image3dUrl}>SVG</button>
-              <button onClick={download3dPDF} className="export-btn" title="PDF 인쇄" disabled={!image3dUrl}>PDF</button>
-            </div>
-          </div>
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', borderRadius: '0 0 10px 10px', overflow: 'hidden', position: 'relative' }}>
-            {is3dLoading ? (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', width: '60%' }}>
-                <div style={{ color: '#666', fontSize: '13px', letterSpacing: '1.5px' }}>
-                  3D RENDERING... {Math.round(renderProgress)}%
-                </div>
-                <div style={{ width: '100%', height: '4px', backgroundColor: '#e0e0e0', borderRadius: '2px', overflow: 'hidden' }}>
-                  <div style={{
-                    height: '100%',
-                    width: `${renderProgress}%`,
-                    backgroundColor: '#c8b89a',
-                    borderRadius: '2px',
-                    transition: 'width 0.3s ease',
-                  }} />
-                </div>
+            {/* 탭 버튼 */}
+            <button
+              className={`bottom-tab-btn${rightTab === '3d' ? ' active' : ''}`}
+              onClick={() => setRightTab('3d')}
+            >
+              3D RENDER
+            </button>
+            <button
+              className={`bottom-tab-btn${rightTab === 'exterior' ? ' active' : ''}`}
+              onClick={() => setRightTab('exterior')}
+            >
+              3D EXTERIOR
+            </button>
+            {/* 내보내기 버튼 (탭에 따라 표시) */}
+            {rightTab === '3d' && (
+              <div className="export-toolbar">
+                <button onClick={download3dPNG} className="export-btn" disabled={!image3dUrl}>PNG</button>
+                <button onClick={download3dSVG} className="export-btn" disabled={!image3dUrl}>SVG</button>
+                <button onClick={download3dPDF} className="export-btn" disabled={!image3dUrl}>PDF</button>
               </div>
-            ) : image3dUrl ? (
-              <img src={image3dUrl} alt="3D render" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-            ) : (
-              <div style={{ color: '#aaa', fontSize: '13px', letterSpacing: '1px' }}>2D 도면이 완성되면 3D 렌더링이 생성됩니다.</div>
+            )}
+            {rightTab === 'exterior' && exteriorStyle && (
+              <div className="export-toolbar">
+                <button className="export-btn" onClick={() => { setExteriorStyle(null); setRefImages([null, null, null]); }}>
+                  레퍼런스 재업로드
+                </button>
+              </div>
             )}
           </div>
+
+          {/* ── 3D RENDER 콘텐츠 ── */}
+          {rightTab === '3d' && (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', borderRadius: '0 0 10px 10px', overflow: 'hidden' }}>
+              {is3dLoading ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', width: '60%' }}>
+                  <div style={{ color: '#666', fontSize: '13px', letterSpacing: '1.5px' }}>
+                    3D RENDERING... {Math.round(renderProgress)}%
+                  </div>
+                  <div style={{ width: '100%', height: '4px', backgroundColor: '#e0e0e0', borderRadius: '2px', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${renderProgress}%`, backgroundColor: '#c8b89a', borderRadius: '2px', transition: 'width 0.3s ease' }} />
+                  </div>
+                </div>
+              ) : image3dUrl ? (
+                <img src={image3dUrl} alt="3D render" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+              ) : (
+                <div style={{ color: '#aaa', fontSize: '13px', letterSpacing: '1px' }}>2D 도면이 완성되면 3D 렌더링이 생성됩니다.</div>
+              )}
+            </div>
+          )}
+
+          {/* ── 3D EXTERIOR 콘텐츠 ── */}
+          {rightTab === 'exterior' && (
+            <>
+              {/* 도면 미완성 */}
+              {!svgOverride && (
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', borderRadius: '0 0 10px 10px' }}>
+                  <div style={{ color: '#aaa', fontSize: '13px', letterSpacing: '1px', textAlign: 'center', lineHeight: 2 }}>
+                    2D 도면이 완성되면<br />레퍼런스 이미지를 업로드할 수 있습니다.
+                  </div>
+                </div>
+              )}
+
+              {/* 레퍼런스 업로드 UI */}
+              {svgOverride && !exteriorStyle && (
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '22px', padding: '20px', backgroundColor: '#ffffff', borderRadius: '0 0 10px 10px' }}>
+                  <div style={{ color: '#8b949e', fontSize: '11px', letterSpacing: '2px', textAlign: 'center' }}>
+                    REFERENCE IMAGES — 원하는 외관 스타일의 이미지를 업로드하세요
+                  </div>
+                  <div style={{ display: 'flex', gap: '14px', justifyContent: 'center' }}>
+                    {[0, 1, 2].map(i => (
+                      <label key={i} className="ref-image-slot">
+                        {refImages[i] ? (
+                          <>
+                            <img src={refImages[i].preview} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '10px' }} alt={`ref ${i + 1}`} />
+                            <div className="ref-image-overlay">변경</div>
+                          </>
+                        ) : (
+                          <div className="ref-image-placeholder">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                              <rect x="3" y="3" width="18" height="18" rx="3"/>
+                              <circle cx="8.5" cy="8.5" r="1.5"/>
+                              <polyline points="21 15 16 10 5 21"/>
+                            </svg>
+                            <span>이미지 {i + 1}</span>
+                          </div>
+                        )}
+                        <input type="file" accept="image/*" style={{ display: 'none' }}
+                          onChange={e => handleRefImageUpload(i, e.target.files?.[0])} />
+                      </label>
+                    ))}
+                  </div>
+                  <button
+                    className="analyze-btn"
+                    disabled={isAnalyzingStyle}
+                    onClick={analyzeReferenceImages}
+                  >
+                    {isAnalyzingStyle ? (
+                      <><span className="analyze-spinner" />스타일 분석 중...</>
+                    ) : '스타일 분석 및 3D 외관 생성'}
+                  </button>
+                  <div style={{ color: '#888', fontSize: '11px' }}>1~3장 업로드 가능 · 건축물 외관 사진 권장</div>
+                </div>
+              )}
+
+              {/* Three.js 뷰어 */}
+              {svgOverride && exteriorStyle && (
+                <div style={{ flex: 1, position: 'relative', overflow: 'hidden', borderRadius: '0 0 10px 10px' }}>
+                  <ThreeExteriorViewer
+                    key={JSON.stringify(exteriorStyle) + svgOverride.length}
+                    svgString={svgOverride}
+                    orderJson={orderJson}
+                    styleData={exteriorStyle}
+                    planGeometry={planGeometry}
+                  />
+                  <div style={{ position: 'absolute', bottom: '12px', left: '50%', transform: 'translateX(-50%)', color: 'rgba(255,255,255,0.7)', fontSize: '11px', pointerEvents: 'none', whiteSpace: 'nowrap' }}>
+                    드래그: 회전 &nbsp;·&nbsp; 스크롤: 줌 &nbsp;·&nbsp; 우클릭: 이동
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
 
       </div>

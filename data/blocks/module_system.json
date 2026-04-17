@@ -1,13 +1,21 @@
 {
-    "grid_unit": 1,
+    "grid_unit": 0.5,
     "standard_widths": [
         3,
-        6
+        4,
+        5,
+        6,
+        7,
+        8,
+        10
     ],
     "standard_depths": [
         3,
         4,
-        6
+        5,
+        6,
+        7,
+        8
     ],
     "floor_height": 3.0,
     "wall_thickness": 0.2,
