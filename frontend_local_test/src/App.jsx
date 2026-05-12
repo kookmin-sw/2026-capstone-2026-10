@@ -455,13 +455,22 @@ required_spaces와 preferences는 빈 배열로 두세요.
 1개면 "거실", 2개 이상이면 "침실 2개" 형식.
 `;
 
+  const ROAD_FACING_REQUIREMENT = `
+    추가 필수 조건:
+    - 도로가 어느 방향에 접하는지 반드시 물어보세요. 선택지는 남쪽, 북쪽, 동쪽, 서쪽입니다.
+    - road_facing 필드를 JSON에 반드시 포함하세요.
+    - road_facing 값은 "남쪽", "북쪽", "동쪽", "서쪽" 중 하나로 작성하세요.
+    - 공간/관계/분위기 정보가 있어도 도로 방향이 없으면 status는 "interviewing"입니다.
+    - complete가 되려면 required_spaces, preferences, road_facing이 모두 있어야 합니다.
+  `;
+
   const fetchLLMResponse = async (userMessage, history) => {
     try {
       const historyContext = history
         .map(chat => `${chat.sender === 'USER' ? '사용자' : 'AI'}: ${chat.text}`)
         .join('\n');
 
-      const fullPrompt = `${SYSTEM_PROMPT}\n\n[지금까지의 대화 내역]\n${historyContext}\n사용자: ${userMessage}\nAI:`;
+      const fullPrompt = `${SYSTEM_PROMPT}\n\n${ROAD_FACING_REQUIREMENT}\n\n[지금까지의 대화 내역]\n${historyContext}\n사용자: ${userMessage}\nAI:`;
 
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`, {
         method: 'POST',
