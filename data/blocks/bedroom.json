@@ -5,8 +5,8 @@
         "bedroom",
         "guest_room"
     ],
-    "width": 3,
-    "depth": 4,
+    "width": 6,
+    "depth": 7,
     "height": 3.0,
     "zone": "private",
     "rotatable": true,

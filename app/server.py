@@ -17,7 +17,6 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 
 from app.services.normalize_service import normalize_llm_json, validate_internal_format
@@ -46,8 +45,8 @@ class RawInput(BaseModel):
     preferences: list[str] = []
 
 
-@app.post("/generate-svg", response_class=PlainTextResponse)
-def generate_svg(body: RawInput) -> str:
+@app.post("/generate-svg")
+def generate_svg(body: RawInput) -> dict:
     try:
         raw = body.model_dump()
         normalized = normalize_llm_json(raw)
@@ -56,6 +55,7 @@ def generate_svg(body: RawInput) -> str:
         layout = generate_layout_from_rules(rules)
         layout = compact_layout_data(layout)
         plan_geometry = build_plan_geometry(layout)
-        return build_svg(plan_geometry)
+        svg = build_svg(plan_geometry)
+        return {"svg": svg, "plan_geometry": plan_geometry}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

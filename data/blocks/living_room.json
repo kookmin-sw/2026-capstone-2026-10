@@ -6,8 +6,8 @@
         "family_room",
         "dining"
     ],
-    "width": 6,
-    "depth": 6,
+    "width": 10,
+    "depth": 8,
     "height": 3.0,
     "zone": "public",
     "rotatable": true,

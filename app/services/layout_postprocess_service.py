@@ -44,7 +44,15 @@ def normalize_for_compaction(raw: dict[str, Any]) -> dict[str, Any]:
         "y": raw["y"],
         "width": raw["width"],
         "depth": get_depth(raw),
+        "zone": raw.get("zone", "private"),
     }
+
+
+def is_entry_private_pair(a: dict[str, Any], b: dict[str, Any]) -> bool:
+    return (
+        (a["space_type"] == "entrance" and b.get("zone") == "private")
+        or (b["space_type"] == "entrance" and a.get("zone") == "private")
+    )
 
 
 def compact_placements_vertically(
@@ -68,7 +76,8 @@ def compact_placements_vertically(
                 continue
 
             blocker_bottom = blocker["y"] + blocker["depth"]
-            new_y = max(new_y, blocker_bottom + vertical_gap)
+            gap = max(vertical_gap, 1.0) if is_entry_private_pair(item, blocker) else vertical_gap
+            new_y = max(new_y, blocker_bottom + gap)
 
         item["y"] = new_y
         placed.append(item)
@@ -89,6 +98,15 @@ def compact_layout_data(
     layout_data: dict[str, Any],
     vertical_gap: float = 0.0,
 ) -> dict[str, Any]:
+    if layout_data.get("meta", {}).get("layout_type") in {
+        "zoned_2d_v1",
+        "flow_2d_v1",
+        "linear_corridor_spine_v1",
+        "l_shaped_corridor_spine_v1",
+        "corridor_path_spine_v1",
+    }:
+        return layout_data
+
     placements = layout_data.get("placements", [])
     if not placements:
         raise ValueError("layout_data does not contain placements")

@@ -130,10 +130,10 @@ def generate_placement_rules(order: dict[str, Any]) -> dict[str, Any]:
     # 2) adjacency preferences
     adjacency_preferences: list[dict[str, Any]] = []
 
-    # 2-1. 사용자가 명시한 관계 반영
+    # 2-1. 사용자가 명시한 관계 반영 (최소 12점으로 온톨로지 기본값보다 강하게 적용)
     for rel in relationship_list:
         if rel.get("type") == "adjacent":
-            score = find_adjacency_score(rel["from"], rel["to"], relations)
+            score = max(12, find_adjacency_score(rel["from"], rel["to"], relations))
             add_unique_adjacency(adjacency_preferences, rel["from"], rel["to"], score)
 
     # 2-2. ontology/relations 기반 기본 관계 반영

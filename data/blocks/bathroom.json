@@ -6,8 +6,8 @@
         "laundry",
         "utility_room"
     ],
-    "width": 3,
-    "depth": 3,
+    "width": 4,
+    "depth": 5,
     "height": 3.0,
     "zone": "private",
     "rotatable": true,

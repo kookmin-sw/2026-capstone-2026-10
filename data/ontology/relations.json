@@ -38,17 +38,32 @@
         {
             "from": "bathroom",
             "to": "bedroom",
-            "score": 7
+            "score": 12
         },
         {
             "from": "bathroom",
             "to": "master_bedroom",
-            "score": 9
+            "score": 14
         },
         {
             "from": "bathroom",
             "to": "child_bedroom",
-            "score": 6
+            "score": 10
+        },
+        {
+            "from": "bathroom",
+            "to": "kitchen",
+            "score": -15
+        },
+        {
+            "from": "bathroom",
+            "to": "living_room",
+            "score": -10
+        },
+        {
+            "from": "bathroom",
+            "to": "entrance",
+            "score": -12
         },
         {
             "from": "connector",
