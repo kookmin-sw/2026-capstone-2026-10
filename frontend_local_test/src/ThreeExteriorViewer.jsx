@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls }      from 'three/addons/controls/OrbitControls.js';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
@@ -6,6 +6,9 @@ import { PointerLockControls } from 'three/addons/controls/PointerLockControls.j
 // ─── Constants ────────────────────────────────────────────
 const SVG_SCALE   = 80;
 const SVG_PADDING = 40;
+
+const MINI_W   = 100;
+const MINI_PAD = 7;
 
 const SPACE_FILL_COLORS = {
   living_room:    '#fef9ec',
@@ -115,10 +118,32 @@ export default function ThreeExteriorViewer({ svgString, orderJson, styleData, p
   const threeRef      = useRef(null);
   const animRef       = useRef({ active: false });
   const keysRef       = useRef({ w: false, a: false, s: false, d: false });
-  const isInteriorRef = useRef(false);
+  const isInteriorRef   = useRef(false);
+  const miniMapDotRef = useRef(null);
+  const planBoundsRef = useRef(null);
 
   const [isInterior, setIsInterior] = useState(false);
   const [isLocked,   setIsLocked]   = useState(false);
+
+  const miniRooms = useMemo(() => {
+    const pgSp = planGeometry?.spaces || [];
+    if (!pgSp.length) return null;
+    const minX = Math.min(...pgSp.map(s => s.x));
+    const maxX = Math.max(...pgSp.map(s => s.x + s.width));
+    const minY = Math.min(...pgSp.map(s => s.y));
+    const maxY = Math.max(...pgSp.map(s => s.y + s.depth));
+    const scale = (MINI_W - MINI_PAD * 2) / Math.max(maxX - minX, maxY - minY);
+    return pgSp.map((sp, i) => (
+      <rect key={i}
+        x={(( sp.x            - minX) * scale + MINI_PAD).toFixed(2)}
+        y={((maxY - sp.y - sp.depth) * scale + MINI_PAD).toFixed(2)}
+        width={(sp.width * scale).toFixed(2)}
+        height={(sp.depth * scale).toFixed(2)}
+        fill={SPACE_FILL_COLORS[sp.space_type] || '#eee'}
+        stroke="rgba(255,255,255,0.35)" strokeWidth="0.6"
+      />
+    ));
+  }, [planGeometry]);
 
   // keep ref in sync for use inside tick closure
   useEffect(() => { isInteriorRef.current = isInterior; }, [isInterior]);
@@ -133,7 +158,7 @@ export default function ThreeExteriorViewer({ svgString, orderJson, styleData, p
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color('#C8DCF0');
-    scene.fog = new THREE.Fog('#C8DCF0', 60, 130);
+    scene.fog = new THREE.Fog('#C8DCF0', 35, 75);
 
     const camera = new THREE.PerspectiveCamera(60, w / h, 0.1, 250);
     const EXT_CAM_POS = new THREE.Vector3(22, 16, 22);
@@ -195,6 +220,17 @@ export default function ThreeExteriorViewer({ svgString, orderJson, styleData, p
 
     // Build scene geometry
     const result = buildScene(scene, planGeometry, svgString, orderJson, styleData);
+
+    // Store plan bounds for mini-map
+    const _pgSp = planGeometry?.spaces || [];
+    if (_pgSp.length) {
+      const minX = Math.min(..._pgSp.map(s => s.x));
+      const maxX = Math.max(..._pgSp.map(s => s.x + s.width));
+      const minY = Math.min(..._pgSp.map(s => s.y));
+      const maxY = Math.max(..._pgSp.map(s => s.y + s.depth));
+      planBoundsRef.current = { minX, maxX, minY, maxY, cx: (minX + maxX) / 2, cy: (minY + maxY) / 2 };
+    }
+
     const EXT_TARGET = new THREE.Vector3(0, result.bH * 0.4, 0);
     orbitCtrl.target.copy(EXT_TARGET);
     orbitCtrl.update();
@@ -238,6 +274,20 @@ export default function ThreeExteriorViewer({ svgString, orderJson, styleData, p
         if (keys.s) plCtrl.moveForward(-spd);
         if (keys.a) plCtrl.moveRight(-spd);
         if (keys.d) plCtrl.moveRight(spd);
+      }
+
+      // Mini-map: update dot from camera position
+      if (isInteriorRef.current) {
+        const pb = planBoundsRef.current;
+        if (pb && miniMapDotRef.current) {
+          const scale = (MINI_W - MINI_PAD * 2) / Math.max(pb.maxX - pb.minX, pb.maxY - pb.minY);
+          const planX = camera.position.x + pb.cx;
+          const planY = pb.cy - camera.position.z;
+          const svgX  = (planX - pb.minX) * scale + MINI_PAD;
+          const svgY  = (pb.maxY - planY) * scale + MINI_PAD;
+          miniMapDotRef.current.setAttribute('cx', svgX.toFixed(1));
+          miniMapDotRef.current.setAttribute('cy', svgY.toFixed(1));
+        }
       }
 
       if (!isInteriorRef.current) orbitCtrl.update();
@@ -362,6 +412,30 @@ export default function ThreeExteriorViewer({ svgString, orderJson, styleData, p
           ESC · 종료
         </div>
       )}
+
+      {/* ── 내부, 포인터 잠금: 미니맵 ── */}
+      {isInterior && isLocked && miniRooms && (
+        <div style={{
+          position: 'absolute', top: '16px', left: '16px',
+          width: `${MINI_W}px`,
+          background: 'rgba(10,10,10,0.55)',
+          borderRadius: '8px',
+          border: '1px solid rgba(255,255,255,0.12)',
+          pointerEvents: 'none',
+        }}>
+          <svg width={MINI_W} height={MINI_W} style={{ display: 'block' }}>
+            {miniRooms}
+            <circle ref={miniMapDotRef} r="3.5" cx="0" cy="0" fill="#FF3C3C" stroke="white" strokeWidth="1" />
+          </svg>
+          <div style={{
+            textAlign: 'center', fontSize: '8px', letterSpacing: '1.2px',
+            color: 'rgba(255,255,255,0.4)', fontFamily: '"IBM Plex Sans", Arial, sans-serif',
+            userSelect: 'none', padding: '3px 0',
+          }}>
+            KEY PLAN
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -436,7 +510,11 @@ function buildScene(scene, planGeometry, svgString, orderJson, styleData) {
 
   const bH = 3.2;
   const isModern = ['modern', 'minimalist', 'contemporary'].includes(styleData?.style);
-  const roofType = !rect ? 'flat' : (styleData?.roofType ?? (isModern ? 'flat' : 'gable'));
+  // If styleData specifies a roof type, always honour it; only fall back to flat for non-rect plans when no preference given
+  const requestedRoof = styleData?.roofType;
+  const roofType = requestedRoof
+    ? requestedRoof
+    : (!rect || isModern ? 'flat' : 'gable');
 
   // Materials
   const wallC   = new THREE.Color(styleData?.wallColor   || '#F0EBE1');
@@ -452,14 +530,12 @@ function buildScene(scene, planGeometry, svgString, orderJson, styleData) {
   const roofMat   = new THREE.MeshStandardMaterial({ color: roofC,   roughness: 0.90 });
   const accentMat = new THREE.MeshStandardMaterial({ color: accentC, roughness: 0.70 });
   const winMat    = new THREE.MeshStandardMaterial({ color: windowC, roughness: 0.10, metalness: 0.10, transparent: true, opacity: 0.75 });
-  const doorMat   = new THREE.MeshStandardMaterial({ color: new THREE.Color(accentC).multiplyScalar(0.65), roughness: 0.60 });
   const stepMat   = new THREE.MeshStandardMaterial({ color: '#C8B898', roughness: 0.85 });
-  const grassMat  = new THREE.MeshStandardMaterial({ color: '#7CB87B', roughness: 0.95 });
-  const pathMat   = new THREE.MeshStandardMaterial({ color: '#C4B49A', roughness: 0.90 });
-  const hedgeMat  = new THREE.MeshStandardMaterial({ color: '#3E8E41', roughness: 0.95 });
+  const groundColor = new THREE.Color(styleData?.groundColor || '#7CB87B');
+  const grassMat  = new THREE.MeshStandardMaterial({ color: groundColor, roughness: 0.95 });
 
   // Ground
-  addMesh(scene, new THREE.PlaneGeometry(100, 100), grassMat, { rx: -Math.PI / 2, receiveShadow: true });
+  addMesh(scene, new THREE.PlaneGeometry(400, 400), grassMat, { rx: -Math.PI / 2, receiveShadow: true });
 
   // Building floor slabs — cover grass gaps between room boxes
   const floorSlabMat = new THREE.MeshStandardMaterial({ color: '#E8E0D0', roughness: 0.90 });
@@ -488,19 +564,21 @@ function buildScene(scene, planGeometry, svgString, orderJson, styleData) {
   const roofGroup = new THREE.Group();
   scene.add(roofGroup);
   if      (roofType === 'flat') buildFlatRoof(roofGroup, spaces, toW, bH, roofMat);
-  else if (roofType === 'hip')  buildHipRoof(roofGroup, roofMat, bW, bD, bH);
-  else                          buildGableRoof(roofGroup, roofMat, bW, bD, bH);
+  else if (roofType === 'hip')  buildHipRoof(roofGroup, spaces, toW, bH, roofMat);
+  else                          buildGableRoof(roofGroup, spaces, toW, bH, roofMat);
 
-  if (styleData?.hasChimney && roofType === 'gable') {
-    const rH = bW * 0.18;
-    addMesh(roofGroup, new THREE.BoxGeometry(0.6, 1.4, 0.6), accentMat, { x: bW * 0.15, y: bH + rH * 0.6 });
-    addMesh(roofGroup, new THREE.BoxGeometry(0.75, 0.12, 0.75), accentMat, { x: bW * 0.15, y: bH + rH * 0.6 + 0.72 });
+  if (styleData?.hasChimney && roofType === 'gable' && spaces.length) {
+    const sp = spaces[0];
+    const wc = toW(sp.x + sp.width * 0.3, sp.y + sp.depth / 2);
+    const rH = Math.min(sp.width, sp.depth) * 0.25;
+    addMesh(roofGroup, new THREE.BoxGeometry(0.6, 1.4, 0.6), accentMat, { x: wc.x, y: bH + rH * 0.5, z: wc.z });
+    addMesh(roofGroup, new THREE.BoxGeometry(0.75, 0.12, 0.75), accentMat, { x: wc.x, y: bH + rH * 0.5 + 0.72, z: wc.z });
   }
 
   // Windows & door
   const openings   = planGeometry?.openings || [];
   const extWindows = openings.filter(op => op.kind === 'window' && op.placement === 'exterior');
-  const entranceOp = openings.find(op => op.kind === 'opening' && op.placement === 'exterior' && op.source_edge_type === 'entry');
+
   const hasLivWin  = extWindows.some(op => isLivingRoom(op.space_type));
   const winY       = bH * 0.45;
 
@@ -521,7 +599,10 @@ function buildScene(scene, planGeometry, svgString, orderJson, styleData) {
       rotY = isEast ? Math.PI / 2 : -Math.PI / 2;
       if (isEast) wx += 0.01; else wx -= 0.01;
     }
-    buildWindow(scene, winMat, accentMat, wx, winY, wz, rotY, winWidth);
+    if (isLivingRoom(win.space_type))
+      buildPanoramicWindow(scene, accentMat, wx, wz, rotY, winWidth, bH);
+    else
+      buildWindow(scene, winMat, accentMat, wx, winY, wz, rotY, winWidth);
   }
 
   if (!extWindows.length) {
@@ -558,27 +639,28 @@ function buildScene(scene, planGeometry, svgString, orderJson, styleData) {
     }
     if (livEdge) {
       const p = getCenterLineWindowPlacement(livEdge, toW, minX, maxX, minY, maxY);
-      buildWindow(scene, winMat, accentMat, p.x, winY, p.z, p.rotY, p.width);
+      buildPanoramicWindow(scene, accentMat, p.x, p.z, p.rotY, p.width, bH);
     }
   }
 
-  // Entrance
-  let doorX = 0, doorZ = bD / 2 + 0.01, doorRotY = 0;
+  // Entrance — door panel + steps + wall-mounted canopy (no pillars)
+  const entranceOp = openings.find(op => op.kind === 'opening' && op.placement === 'exterior' && op.source_edge_type === 'entry');
   if (entranceOp) {
     const mx = (entranceOp.x1 + entranceOp.x2) / 2, my = (entranceOp.y1 + entranceOp.y2) / 2;
-    ({ x: doorX, z: doorZ } = toW(mx, my));
+    const { x: enX, z: enZ } = toW(mx, my);
     const side = entranceOp.host_side;
-    if      (side === 'north') { doorZ -= 0.01; doorRotY = Math.PI; }
-    else if (side === 'south') { doorZ += 0.01; doorRotY = 0; }
-    else if (side === 'east')  { doorX += 0.01; doorRotY = Math.PI / 2; }
-    else                       { doorX -= 0.01; doorRotY = -Math.PI / 2; }
+    let enRotY = 0;
+    if      (side === 'north') enRotY = Math.PI;
+    else if (side === 'south') enRotY = 0;
+    else if (side === 'east')  enRotY = Math.PI / 2;
+    else                       enRotY = -Math.PI / 2;
+    buildEntrance(roomBoxGroup, enX, enZ, enRotY, accentMat, stepMat);
   }
-  buildEntrance(scene, doorX, doorZ, doorRotY, doorMat, accentMat, stepMat, pathMat, hedgeMat, bW);
 
-  // Trees
-  buildTree(scene, -bW / 2 - 3.0, 0,  bD * 0.15);
-  buildTree(scene,  bW / 2 + 3.0, 0,  bD * 0.15);
-  buildTree(scene,  bW / 2 + 2.2, 0, -bD * 0.3);
+  // Trees — varied sizes for natural grouping
+  buildTree(scene, -bW / 2 - 3.0, 0,  bD * 0.15, 1.0);
+  buildTree(scene,  bW / 2 + 3.0, 0,  bD * 0.15, 1.25);
+  buildTree(scene,  bW / 2 + 2.2, 0, -bD * 0.3,  0.82);
 
   // ── Interior group ──────────────────────────────────────
   const interiorGroup = new THREE.Group();
@@ -682,66 +764,253 @@ function getCenterLineWindowPlacement(edge, toW, minX, maxX, minY, maxY) {
   return { x, z, rotY, width };
 }
 
+// Returns true if another room occupies the given edge side of sp (plan coords).
+// Returns array of [start, end] ranges (in edge-parallel plan coords) that have no neighbour.
+function _exteriorSegments(sp, edge, spaces, eps = 0.05) {
+  const covered = [];
+  for (const other of spaces) {
+    if (other === sp) continue;
+    let s, e;
+    if (edge === 'north') {
+      if (Math.abs(other.y + other.depth - sp.y) >= eps) continue;
+      s = Math.max(other.x, sp.x); e = Math.min(other.x + other.width, sp.x + sp.width);
+    } else if (edge === 'south') {
+      if (Math.abs(other.y - (sp.y + sp.depth)) >= eps) continue;
+      s = Math.max(other.x, sp.x); e = Math.min(other.x + other.width, sp.x + sp.width);
+    } else if (edge === 'west') {
+      if (Math.abs(other.x + other.width - sp.x) >= eps) continue;
+      s = Math.max(other.y, sp.y); e = Math.min(other.y + other.depth, sp.y + sp.depth);
+    } else {  // east
+      if (Math.abs(other.x - (sp.x + sp.width)) >= eps) continue;
+      s = Math.max(other.y, sp.y); e = Math.min(other.y + other.depth, sp.y + sp.depth);
+    }
+    if (e > s + eps) covered.push([s, e]);
+  }
+
+  const fullS = (edge === 'north' || edge === 'south') ? sp.x : sp.y;
+  const fullE = (edge === 'north' || edge === 'south') ? sp.x + sp.width : sp.y + sp.depth;
+
+  covered.sort((a, b) => a[0] - b[0]);
+  const merged = [];
+  for (const seg of covered) {
+    if (!merged.length || seg[0] > merged[merged.length - 1][1] + eps) merged.push([...seg]);
+    else merged[merged.length - 1][1] = Math.max(merged[merged.length - 1][1], seg[1]);
+  }
+
+  const exterior = [];
+  let cur = fullS;
+  for (const [cs, ce] of merged) {
+    if (cs - cur > eps) exterior.push([cur, cs]);
+    cur = Math.max(cur, ce);
+  }
+  if (fullE - cur > eps) exterior.push([cur, fullE]);
+  return exterior;
+}
+
 function buildFlatRoof(target, spaces, toW, bH, mat) {
-  const slabH = 0.22;
+  const slabH = 0.18, paraH = 0.32, paraT = 0.14, oh = 0.06;
+
   for (const sp of spaces) {
-    const w = toW(sp.x + sp.width / 2, sp.y + sp.depth / 2);
-    addMesh(target, new THREE.BoxGeometry(sp.width + 0.05, slabH, sp.depth + 0.05), mat,
+    const w  = toW(sp.x + sp.width / 2, sp.y + sp.depth / 2);
+    const sw = sp.width  + oh * 2;
+    const sd = sp.depth  + oh * 2;
+
+    addMesh(target, new THREE.BoxGeometry(sw, slabH, sd), mat,
       { x: w.x, y: bH + slabH / 2, z: w.z, castShadow: true });
+
+    const py = bH + slabH + paraH / 2;
+    const nZ = w.z + sd / 2 - paraT / 2;  // plan-north ↔ scene +Z
+    const sZ = w.z - sd / 2 + paraT / 2;  // plan-south ↔ scene -Z
+    const wX = w.x - sw / 2 + paraT / 2;  // plan-west  ↔ scene -X
+    const eX = w.x + sw / 2 - paraT / 2;  // plan-east  ↔ scene +X
+
+    // north/south: segments are in plan-X → scene-X
+    for (const [s, e] of _exteriorSegments(sp, 'north', spaces))
+      addMesh(target, new THREE.BoxGeometry(e - s, paraH, paraT), mat,
+        { x: toW((s + e) / 2, sp.y).x, y: py, z: nZ, castShadow: true });
+    for (const [s, e] of _exteriorSegments(sp, 'south', spaces))
+      addMesh(target, new THREE.BoxGeometry(e - s, paraH, paraT), mat,
+        { x: toW((s + e) / 2, sp.y).x, y: py, z: sZ, castShadow: true });
+    // west/east: segments are in plan-Y → scene-Z (inverted)
+    for (const [s, e] of _exteriorSegments(sp, 'west', spaces))
+      addMesh(target, new THREE.BoxGeometry(paraT, paraH, e - s), mat,
+        { x: wX, y: py, z: toW(sp.x, (s + e) / 2).z, castShadow: true });
+    for (const [s, e] of _exteriorSegments(sp, 'east', spaces))
+      addMesh(target, new THREE.BoxGeometry(paraT, paraH, e - s), mat,
+        { x: eX, y: py, z: toW(sp.x, (s + e) / 2).z, castShadow: true });
   }
 }
 
-function buildGableRoof(target, mat, bW, bD, bH) {
-  const oh = 0.25, rH = bW * 0.18;
-  const shape = new THREE.Shape();
-  shape.moveTo(-(bW / 2 + oh), 0); shape.lineTo(0, rH); shape.lineTo(bW / 2 + oh, 0); shape.closePath();
-  const geo  = new THREE.ExtrudeGeometry(shape, { depth: bD + oh * 2, bevelEnabled: false });
-  const roof = new THREE.Mesh(geo, mat);
-  roof.position.set(0, bH, -(bD / 2 + oh)); roof.castShadow = true;
-  target.add(roof);
+function buildGableRoof(target, spaces, toW, bH, mat) {
+  // Build one gable roof per room so irregular footprints are handled correctly.
+  const oh = 0.22;
+  for (const sp of spaces) {
+    const wc   = toW(sp.x + sp.width / 2, sp.y + sp.depth / 2);
+    const spW  = sp.width, spD = sp.depth;
+    const shape = new THREE.Shape();
+
+    if (spW >= spD) {
+      // Ridge E-W (longer axis). Pitch spans depth.
+      const rH = spD * 0.24;
+      shape.moveTo(-(spD / 2 + oh), 0); shape.lineTo(0, rH); shape.lineTo(spD / 2 + oh, 0); shape.closePath();
+      const geo  = new THREE.ExtrudeGeometry(shape, { depth: spW + oh * 2, bevelEnabled: false });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.rotation.y = Math.PI / 2;
+      mesh.position.set(wc.x - (spW / 2 + oh), bH, wc.z);
+      mesh.castShadow = true;
+      target.add(mesh);
+    } else {
+      // Ridge N-S (longer axis). Pitch spans width.
+      const rH = spW * 0.24;
+      shape.moveTo(-(spW / 2 + oh), 0); shape.lineTo(0, rH); shape.lineTo(spW / 2 + oh, 0); shape.closePath();
+      const geo  = new THREE.ExtrudeGeometry(shape, { depth: spD + oh * 2, bevelEnabled: false });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(wc.x, bH, wc.z - (spD / 2 + oh));
+      mesh.castShadow = true;
+      target.add(mesh);
+    }
+  }
 }
 
-function buildHipRoof(target, mat, bW, bD, bH) {
-  const oh = 0.25, rH = Math.min(bW, bD) * 0.20;
-  const hw = bW / 2 + oh, hd = bD / 2 + oh, top = bH + rH;
-  const verts = new Float32Array([
-    -hw, bH,  hd,  hw, bH,  hd,  0, top, 0,
-     hw, bH, -hd, -hw, bH, -hd,  0, top, 0,
-     hw, bH,  hd,  hw, bH, -hd,  0, top, 0,
-    -hw, bH, -hd, -hw, bH,  hd,  0, top, 0,
-    -hw, bH, -hd,  hw, bH, -hd,  hw, bH,  hd,
-    -hw, bH, -hd,  hw, bH,  hd, -hw, bH,  hd,
-  ]);
+function buildHipRoof(target, spaces, toW, bH, mat) {
+  // Build one hip roof per room so irregular footprints are handled correctly.
+  const oh = 0.22;
+  for (const sp of spaces) {
+    const wc = toW(sp.x + sp.width / 2, sp.y + sp.depth / 2);
+    _hipRoomPanel(target, mat, sp.width, sp.depth, bH, wc.x, wc.z, oh);
+  }
+}
+
+function _hipRoomPanel(target, mat, spW, spD, bH, cx, cz, oh) {
+  const hw  = spW / 2 + oh;
+  const hd  = spD / 2 + oh;
+  const rH  = Math.min(hw, hd) * 0.42;  // local ridge height (Y=0 = eave level)
+
+  let verts;
+  if (spW >= spD) {
+    const rl = (spW - spD) / 2;
+    verts = new Float32Array([
+      // South slope
+       hw, 0, -hd,  -hw, 0, -hd,  -rl, rH, 0,
+       hw, 0, -hd,  -rl, rH,  0,   rl, rH, 0,
+      // North slope
+      -hw, 0,  hd,   hw, 0,  hd,   rl, rH, 0,
+      -hw, 0,  hd,   rl, rH,  0,  -rl, rH, 0,
+      // East hip
+       hw, 0,  hd,   hw, 0, -hd,   rl, rH, 0,
+      // West hip
+      -hw, 0, -hd,  -hw, 0,  hd,  -rl, rH, 0,
+      // Eave cap
+      -hw, 0, -hd,   hw, 0, -hd,   hw, 0,  hd,
+      -hw, 0, -hd,   hw, 0,  hd,  -hw, 0,  hd,
+    ]);
+  } else {
+    const rl = (spD - spW) / 2;
+    verts = new Float32Array([
+      // East slope
+       hw, 0,  hd,   hw, 0, -hd,    0, rH, -rl,
+       hw, 0,  hd,    0, rH, -rl,    0, rH,  rl,
+      // West slope
+      -hw, 0, -hd,  -hw, 0,  hd,    0, rH,  rl,
+      -hw, 0, -hd,    0, rH,  rl,    0, rH, -rl,
+      // South hip
+       hw, 0, -hd,  -hw, 0, -hd,    0, rH, -rl,
+      // North hip
+      -hw, 0,  hd,   hw, 0,  hd,    0, rH,  rl,
+      // Eave cap
+      -hw, 0, -hd,   hw, 0, -hd,   hw, 0,  hd,
+      -hw, 0, -hd,   hw, 0,  hd,  -hw, 0,  hd,
+    ]);
+  }
+
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(verts, 3));
   geo.computeVertexNormals();
-  const roof = new THREE.Mesh(geo, mat); roof.castShadow = true;
-  target.add(roof);
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.set(cx, bH, cz);
+  mesh.castShadow = true;
+  target.add(mesh);
 }
 
-function buildEntrance(scene, x, z, rotY, doorMat, accentMat, stepMat, pathMat, hedgeMat, bW) {
-  const doorH = 2.2, doorW = 1.0, canopyY = 2.45, canopyD = 0.9;
-  const grp = new THREE.Group(); grp.position.set(x, 0, z); grp.rotation.y = rotY;
 
-  const door  = new THREE.Mesh(new THREE.BoxGeometry(doorW, doorH, 0.08), doorMat); door.position.y = doorH / 2; grp.add(door);
-  const frame = new THREE.Mesh(new THREE.BoxGeometry(doorW + 0.2, doorH + 0.1, 0.06), accentMat); frame.position.set(0, doorH / 2 + 0.05, -0.01); grp.add(frame);
-  const can   = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.12, canopyD), accentMat); can.position.set(0, canopyY, canopyD / 2); can.castShadow = true; grp.add(can);
+function buildEntrance(target, x, z, rotY, accentMat, stepMat) {
+  const doorH = 2.2, doorW = 1.0;
+  const grp = new THREE.Group();
+  grp.position.set(x, 0, z);
+  grp.rotation.y = rotY;
 
-  const pilGeo = new THREE.CylinderGeometry(0.05, 0.05, canopyY, 8);
-  [-0.75, 0.75].forEach(px => { const p = new THREE.Mesh(pilGeo, accentMat); p.position.set(px, canopyY / 2, canopyD); grp.add(p); });
+  // Door panel — dark wood, flush with wall face
+  const doorPanelMat = new THREE.MeshStandardMaterial({ color: '#3E2A1A', roughness: 0.72 });
+  const door = new THREE.Mesh(new THREE.BoxGeometry(doorW, doorH, 0.06), doorPanelMat);
+  door.position.set(0, doorH / 2, 0.02);
+  grp.add(door);
 
+  // Wall-mounted canopy — thin slab directly above the opening, no pillars
+  const canopyW = doorW + 0.8;
+  const canopy = new THREE.Mesh(new THREE.BoxGeometry(canopyW, 0.10, 0.55), accentMat);
+  canopy.position.set(0, doorH + 0.12, 0.25);
+  canopy.castShadow = true;
+  grp.add(canopy);
+
+  // Steps
   [0, 1].forEach(i => {
-    const step = new THREE.Mesh(new THREE.BoxGeometry(1.8 - i * 0.3, 0.14, 0.38), stepMat);
-    step.position.set(0, 0.07 + i * 0.14, 0.3 + (1 - i) * 0.38); grp.add(step);
+    const step = new THREE.Mesh(
+      new THREE.BoxGeometry(doorW + 0.4 + i * 0.3, 0.12, 0.36),
+      stepMat
+    );
+    step.position.set(0, 0.06 + i * 0.12, 0.22 + (1 - i) * 0.36);
+    grp.add(step);
   });
 
-  const hw = Math.min(bW * 0.18, 2.0), hGeo = new THREE.BoxGeometry(hw, 0.5, 0.45);
-  [-1, 1].forEach(s => { const h = new THREE.Mesh(hGeo, hedgeMat); h.position.set(s * (doorW / 2 + hw / 2 + 0.5), 0.25, 0.2); grp.add(h); });
-  scene.add(grp);
+  target.add(grp);
+}
 
-  const pg = new THREE.Group(); pg.position.set(x, 0, z); pg.rotation.y = rotY;
-  const pm = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 8), pathMat); pm.rotation.x = -Math.PI / 2; pm.position.set(0, 0.01, 5.0); pg.add(pm);
-  scene.add(pg);
+// Floor-to-ceiling panoramic window with vertical mullion divisions
+function buildPanoramicWindow(scene, frameMat, x, z, rotY, width, bH) {
+  const fD = 0.10, fT = 0.06;
+  const sill = 0.15, head = 0.15;
+  const fH   = bH - sill - head;   // nearly full wall height
+  const cy   = sill + fH / 2;      // center Y from floor (≈ bH/2)
+  const grp  = new THREE.Group();
+
+  // Outer frame rails + stiles
+  const addBar = (w, h, px, py) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, fD), frameMat);
+    m.position.set(px, py, 0); grp.add(m);
+  };
+  addBar(width, fT, 0,                  fH / 2 - fT / 2);   // top rail
+  addBar(width, fT, 0,                -(fH / 2 - fT / 2));  // bottom rail
+  addBar(fT,    fH, -(width / 2 - fT / 2), 0);              // left stile
+  addBar(fT,    fH,   width / 2 - fT / 2,  0);              // right stile
+
+  // Vertical mullions — one every ~1.40 m
+  const panelCount = Math.max(2, Math.round(width / 1.40));
+  const panelW     = width / panelCount;
+  for (let i = 1; i < panelCount; i++) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(fT * 0.8, fH - fT * 2, fD), frameMat);
+    m.position.set(-width / 2 + panelW * i, 0, 0); grp.add(m);
+  }
+
+  // Glass panes — front + back per panel
+  const glassMat = new THREE.MeshStandardMaterial({
+    color: '#A8D4F0', roughness: 0.04, metalness: 0.25,
+    transparent: true, opacity: 0.60, side: THREE.DoubleSide,
+  });
+  const glassH = fH - fT * 2;
+  for (let i = 0; i < panelCount; i++) {
+    const px    = -width / 2 + panelW * i + panelW / 2;
+    const glassW = panelW - fT;
+    const geo   = new THREE.PlaneGeometry(glassW, glassH);
+    [-1, 1].forEach(sign => {
+      const g = new THREE.Mesh(geo, glassMat);
+      g.position.set(px, 0, sign * (fD / 2 - 0.002));
+      grp.add(g);
+    });
+  }
+
+  grp.position.set(x, cy, z);
+  grp.rotation.y = rotY;
+  scene.add(grp);
 }
 
 function buildWindow(scene, winMat, frameMat, x, y, z, rotY, width = 1.0) {
@@ -773,11 +1042,33 @@ function buildWindow(scene, winMat, frameMat, x, y, z, rotY, width = 1.0) {
   grp.position.set(x, y, z); grp.rotation.y = rotY; scene.add(grp);
 }
 
-function buildTree(scene, x, y, z) {
-  addMesh(scene, new THREE.CylinderGeometry(0.14, 0.20, 1.6, 8),
-    new THREE.MeshStandardMaterial({ color: '#5D4037', roughness: 0.9 }), { x, y: y + 0.8, z, castShadow: true });
-  addMesh(scene, new THREE.SphereGeometry(1.35, 10, 8),
-    new THREE.MeshStandardMaterial({ color: '#2E7D32', roughness: 0.95 }), { x, y: y + 2.9, z, castShadow: true });
+function buildTree(scene, x, y, z, scale = 1.0) {
+  const s = scale;
+  const trunkMat  = new THREE.MeshStandardMaterial({ color: '#5C3D1E', roughness: 0.95 });
+  const mk = (hex) => new THREE.MeshStandardMaterial({ color: hex, roughness: 0.98 });
+
+  // Root flare + main trunk
+  addMesh(scene, new THREE.CylinderGeometry(0.20 * s, 0.30 * s, 0.40 * s, 8),
+    trunkMat, { x, y: y + 0.20 * s, z, castShadow: true });
+  addMesh(scene, new THREE.CylinderGeometry(0.10 * s, 0.20 * s, 1.90 * s, 8),
+    trunkMat, { x, y: y + 1.35 * s, z, castShadow: true });
+
+  // Canopy — five overlapping spheres of varying size, offset asymmetrically
+  // Central/upper mass
+  addMesh(scene, new THREE.SphereGeometry(1.10 * s, 9, 7), mk('#358035'),
+    { x,               y: y + 3.10 * s, z,               castShadow: true });
+  // Lower-left cluster (darker — shadow side)
+  addMesh(scene, new THREE.SphereGeometry(0.90 * s, 8, 6), mk('#2A6B2A'),
+    { x: x - 0.70 * s, y: y + 2.50 * s, z: z + 0.38 * s, castShadow: true });
+  // Lower-right cluster
+  addMesh(scene, new THREE.SphereGeometry(0.82 * s, 8, 6), mk('#3A7D35'),
+    { x: x + 0.62 * s, y: y + 2.65 * s, z: z - 0.30 * s, castShadow: true });
+  // Upper-front cluster (lighter — sunlit)
+  addMesh(scene, new THREE.SphereGeometry(0.75 * s, 8, 6), mk('#45943C'),
+    { x: x + 0.28 * s, y: y + 3.75 * s, z: z + 0.48 * s, castShadow: true });
+  // Upper-back cluster
+  addMesh(scene, new THREE.SphereGeometry(0.65 * s, 8, 6), mk('#2E7030'),
+    { x: x - 0.38 * s, y: y + 3.55 * s, z: z - 0.42 * s, castShadow: true });
 }
 
 function addMesh(target, geo, mat, opts = {}) {
@@ -819,12 +1110,16 @@ function buildInteriorWalls(group, planGeometry, cx, cy, bH) {
   const extOpenings = (planGeometry?.openings || []).filter(op => op.placement === 'exterior');
   const wallT = 0.12;
   const doorH = 2.2;
-  const winBot = bH * 0.27;  // ~0.86 m sill
-  const winTop = bH * 0.62;  // ~1.98 m top
-  const wallMat = new THREE.MeshStandardMaterial({ color: '#F0EBE1', roughness: 0.85, side: THREE.DoubleSide });
-  const lintMat = new THREE.MeshStandardMaterial({ color: '#E0D8CC', roughness: 0.85, side: THREE.DoubleSide });
+  const winBot = bH * 0.27;  // ~0.86 m sill (regular windows)
+  const winTop = bH * 0.62;  // ~1.98 m top  (regular windows)
+  const panBot = 0.15;        // panoramic living-room window: tiny sill
+  const panTop = bH - 0.15;  // panoramic living-room window: to ceiling
+  const wallMat    = new THREE.MeshStandardMaterial({ color: '#F0EBE1', roughness: 0.85, side: THREE.DoubleSide });
+  const lintMat    = new THREE.MeshStandardMaterial({ color: '#E0D8CC', roughness: 0.85, side: THREE.DoubleSide });
+  const intDoorMat = new THREE.MeshStandardMaterial({ color: '#3E2A1A', roughness: 0.72, side: THREE.DoubleSide });
 
-  // Exterior walls — solid panels with window cutouts (sill + lintel preserved)
+  // Exterior walls — solid panels with opening cutouts
+  // Windows: sill + lintel preserved. Entry doors: full-height cut + interior door panel.
   for (const edge of outerEdges) {
     const edgeOps = extOpenings.filter(op => isOpOnEdge(op, edge));
     if (!edgeOps.length) {
@@ -840,19 +1135,30 @@ function buildInteriorWalls(group, planGeometry, cx, cy, bH) {
         .sort((a, b) => Math.min(a.x1, a.x2) - Math.min(b.x1, b.x2));
       let cur = x0;
       for (const op of sorted) {
+        const isEntry = op.source_edge_type === 'entry';
         const ox0 = Math.max(x0, Math.min(op.x1, op.x2));
         const ox1 = Math.min(x1, Math.max(op.x1, op.x2));
         if (ox0 > cur + 0.01)
           addMesh(group, new THREE.BoxGeometry(ox0 - cur, bH, wallT), wallMat,
             { x: (cur + ox0) / 2 - cx, y: bH / 2, z: wz });
-        // Sill below window
-        if (winBot > 0.05)
-          addMesh(group, new THREE.BoxGeometry(ox1 - ox0, winBot, wallT), wallMat,
-            { x: (ox0 + ox1) / 2 - cx, y: winBot / 2, z: wz });
-        // Lintel above window
-        if (bH - winTop > 0.05)
-          addMesh(group, new THREE.BoxGeometry(ox1 - ox0, bH - winTop, wallT), lintMat,
-            { x: (ox0 + ox1) / 2 - cx, y: winTop + (bH - winTop) / 2, z: wz });
+        if (isEntry) {
+          // Lintel above door only
+          if (bH - doorH > 0.05)
+            addMesh(group, new THREE.BoxGeometry(ox1 - ox0, bH - doorH, wallT), lintMat,
+              { x: (ox0 + ox1) / 2 - cx, y: doorH + (bH - doorH) / 2, z: wz });
+          // Interior-facing door panel (visible in interior mode)
+          addMesh(group, new THREE.BoxGeometry(ox1 - ox0, doorH, 0.06), intDoorMat,
+            { x: (ox0 + ox1) / 2 - cx, y: doorH / 2, z: wz });
+        } else {
+          const wBot = isLivingRoom(op.space_type) ? panBot : winBot;
+          const wTop = isLivingRoom(op.space_type) ? panTop : winTop;
+          if (wBot > 0.05)
+            addMesh(group, new THREE.BoxGeometry(ox1 - ox0, wBot, wallT), wallMat,
+              { x: (ox0 + ox1) / 2 - cx, y: wBot / 2, z: wz });
+          if (bH - wTop > 0.05)
+            addMesh(group, new THREE.BoxGeometry(ox1 - ox0, bH - wTop, wallT), lintMat,
+              { x: (ox0 + ox1) / 2 - cx, y: wTop + (bH - wTop) / 2, z: wz });
+        }
         cur = ox1;
       }
       if (cur < x1 - 0.01)
@@ -866,17 +1172,28 @@ function buildInteriorWalls(group, planGeometry, cx, cy, bH) {
         .sort((a, b) => Math.min(a.y1, a.y2) - Math.min(b.y1, b.y2));
       let cur = y0;
       for (const op of sorted) {
+        const isEntry = op.source_edge_type === 'entry';
         const oy0 = Math.max(y0, Math.min(op.y1, op.y2));
         const oy1 = Math.min(y1, Math.max(op.y1, op.y2));
         if (oy0 > cur + 0.01)
           addMesh(group, new THREE.BoxGeometry(wallT, bH, oy0 - cur), wallMat,
             { x: wx, y: bH / 2, z: cy - (cur + oy0) / 2 });
-        if (winBot > 0.05)
-          addMesh(group, new THREE.BoxGeometry(wallT, winBot, oy1 - oy0), wallMat,
-            { x: wx, y: winBot / 2, z: cy - (oy0 + oy1) / 2 });
-        if (bH - winTop > 0.05)
-          addMesh(group, new THREE.BoxGeometry(wallT, bH - winTop, oy1 - oy0), lintMat,
-            { x: wx, y: winTop + (bH - winTop) / 2, z: cy - (oy0 + oy1) / 2 });
+        if (isEntry) {
+          if (bH - doorH > 0.05)
+            addMesh(group, new THREE.BoxGeometry(wallT, bH - doorH, oy1 - oy0), lintMat,
+              { x: wx, y: doorH + (bH - doorH) / 2, z: cy - (oy0 + oy1) / 2 });
+          addMesh(group, new THREE.BoxGeometry(0.06, doorH, oy1 - oy0), intDoorMat,
+            { x: wx, y: doorH / 2, z: cy - (oy0 + oy1) / 2 });
+        } else {
+          const wBot = isLivingRoom(op.space_type) ? panBot : winBot;
+          const wTop = isLivingRoom(op.space_type) ? panTop : winTop;
+          if (wBot > 0.05)
+            addMesh(group, new THREE.BoxGeometry(wallT, wBot, oy1 - oy0), wallMat,
+              { x: wx, y: wBot / 2, z: cy - (oy0 + oy1) / 2 });
+          if (bH - wTop > 0.05)
+            addMesh(group, new THREE.BoxGeometry(wallT, bH - wTop, oy1 - oy0), lintMat,
+              { x: wx, y: wTop + (bH - wTop) / 2, z: cy - (oy0 + oy1) / 2 });
+        }
         cur = oy1;
       }
       if (cur < y1 - 0.01)
@@ -1197,14 +1514,6 @@ function addRoomDetail(group, sp, toW, cx, cy, bH, allOpenings) {
     box(0.42, 0.50, 0.38, new THREE.MeshStandardMaterial({ map: stTex, roughness: 0.65 }),
       bW/2 + 0.26, 0, bZ);
 
-  } else if (type === 'entrance') {
-    const doorMat = new THREE.Mesh(
-      new THREE.PlaneGeometry(Math.min(sw * 0.55, 0.9), Math.min(sd * 0.45, 0.55)),
-      smat('#3C2E24', 0.95)
-    );
-    doorMat.rotation.x = -Math.PI / 2;
-    doorMat.position.set(wx, 0.022, wz);
-    group.add(doorMat);
   }
 }
 
@@ -1255,9 +1564,10 @@ function addRoomWalls(group, sp, toW, cx, cy, bH, color, allOpenings, innerWalls
   const mat   = new THREE.MeshStandardMaterial({ color, roughness: 0.82, side: THREE.FrontSide });
   const eps   = 0.20;
 
-  // Window height range from buildWindow constants
-  const winSill   = bH * 0.45 - 0.50;   // bottom of window glass
-  const winLintel = bH * 0.45 + 0.50;   // top of window glass
+  // Window height range — panoramic (floor-to-ceiling) for living room, standard otherwise
+  const isLivRoom = isLivingRoom(sp.space_type);
+  const winSill   = isLivRoom ? 0.15         : bH * 0.45 - 0.50;
+  const winLintel = isLivRoom ? bH - 0.15    : bH * 0.45 + 0.50;
 
   // Place a rectangle strip on a wall (segA..segB along the free axis, y0..y0+h vertically)
   function strip(segA, segB, y0, h, fixedCoord, rotY, horizWall) {

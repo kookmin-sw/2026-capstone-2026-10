@@ -191,6 +191,7 @@ function defaultExteriorStyle() {
     wallColor: '#F0EBE1',
     roofColor: '#4F5B52',
     accentColor: '#7A6550',
+    groundColor: '#8AAE7A',
     roofType: 'flat',
     style: 'modern',
     hasChimney: false,
@@ -414,7 +415,6 @@ Place only the furniture listed for each room type present:
 · 집에서 주로 하는 활동 (요리, 운동, 독서, 게임, 악기, 그림 등)
 · 재택근무나 집에서 일하는지 여부
 · 집에서 가장 중요하게 여기는 것 (햇빛, 조용함, 넓은 공간, 수납 등)
-· 집 앞 도로 방향 — "앞마당이나 현관이 어느 쪽을 바라보면 좋겠어요?" 식으로 자연스럽게
 
 [공간 추론 규칙 — 절대 사용자에게 언급하지 말 것]
 - 혼자 삶 → 침실 1개
@@ -445,7 +445,6 @@ required_spaces와 preferences는 빈 배열로 두세요.
   "reply_message": "사용자에게 할 말. 반드시 친근하고 자연스러운 말투로.",
   "family_type": "가족 구성 (예: 1인 가구, 신혼부부, 4인 가족)",
   "housing_type": "단독주택",
-  "road_facing": "남쪽/북쪽/동쪽/서쪽 중 하나",
   "required_spaces": ["한국어, 개수 포함. 예: 침실 2개, 거실, 주방, 욕실"],
   "preferences": ["생활 방식에서 추론한 설계 선호. 예: 거실은 햇빛이 잘 드는 남향으로"]
 }
@@ -455,22 +454,13 @@ required_spaces와 preferences는 빈 배열로 두세요.
 1개면 "거실", 2개 이상이면 "침실 2개" 형식.
 `;
 
-  const ROAD_FACING_REQUIREMENT = `
-    추가 필수 조건:
-    - 도로가 어느 방향에 접하는지 반드시 물어보세요. 선택지는 남쪽, 북쪽, 동쪽, 서쪽입니다.
-    - road_facing 필드를 JSON에 반드시 포함하세요.
-    - road_facing 값은 "남쪽", "북쪽", "동쪽", "서쪽" 중 하나로 작성하세요.
-    - 공간/관계/분위기 정보가 있어도 도로 방향이 없으면 status는 "interviewing"입니다.
-    - complete가 되려면 required_spaces, preferences, road_facing이 모두 있어야 합니다.
-  `;
-
   const fetchLLMResponse = async (userMessage, history) => {
     try {
       const historyContext = history
         .map(chat => `${chat.sender === 'USER' ? '사용자' : 'AI'}: ${chat.text}`)
         .join('\n');
 
-      const fullPrompt = `${SYSTEM_PROMPT}\n\n${ROAD_FACING_REQUIREMENT}\n\n[지금까지의 대화 내역]\n${historyContext}\n사용자: ${userMessage}\nAI:`;
+      const fullPrompt = `${SYSTEM_PROMPT}\n\n[지금까지의 대화 내역]\n${historyContext}\n사용자: ${userMessage}\nAI:`;
 
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`, {
         method: 'POST',
@@ -725,19 +715,31 @@ required_spaces와 preferences는 빈 배열로 두세요.
         inlineData: { mimeType: img.mimeType, data: img.base64 },
       }));
       imgParts.push({
-        text: `이 건축물 외관 레퍼런스 이미지들을 분석해 디자인 스타일을 추출하세요.
+        text: `이 건축물 외관 레퍼런스 이미지들을 분석해 3D 모델에 적용할 디자인 속성을 추출하세요.
 반드시 아래 JSON 형식으로만 응답하세요 (설명 없이 JSON만):
 {
   "wallColor": "#F0EBE1",
   "roofColor": "#5C4B35",
   "accentColor": "#7A6550",
-  "roofType": "gable",
-  "style": "traditional",
+  "groundColor": "#8AAE7A",
+  "roofType": "flat",
+  "style": "modern",
   "hasChimney": false
 }
-roofType: "gable" | "flat" | "hip"
-style: "modern" | "traditional" | "minimalist" | "rustic" | "contemporary"
-색상은 이미지에서 추출한 실제 hex 코드로 작성하세요.`,
+
+각 필드 설명:
+- wallColor: 건물 외벽의 주요 색상 hex 코드 (실제 이미지에서 추출)
+- roofColor: 지붕 표면의 색상 hex 코드 (실제 이미지에서 추출)
+- accentColor: 창틀·처마·문 등 포인트 부위의 색상 hex 코드 (실제 이미지에서 추출)
+- groundColor: 건물 주변 대지/마당/정원의 지면 색상 hex 코드 (잔디면이면 #7CB87B, 자갈/포장이면 #B0A898, 흙이면 #9B7B5A 등 실제 이미지에서 추출)
+- roofType: 아래 세 가지 중 정확히 하나를 선택하세요. 애매하면 "flat"을 선택하세요.
+  * "flat" — 경사가 거의 없는 수평 평지붕. 지붕 면이 하늘에서 보면 평평함. 현대/미니멀 건물에 많음.
+  * "gable" — 삼각형 박공지붕. 지붕 꼭대기에 수평 능선(ridge)이 있고 양쪽으로 경사면이 내려옴. 정면에서 보면 역V자 형태.
+  * "hip" — 우진각(팔작)지붕. 능선(ridge)이 있고 네 방향 모두 경사면. 위에서 보면 사다리꼴 능선이 보임. 단순 피라미드가 아니라 양쪽 끝도 경사짐.
+- style: "modern" | "traditional" | "minimalist" | "rustic" | "contemporary"
+- hasChimney: 굴뚝 여부 boolean
+
+모든 색상은 이미지에서 직접 추출한 실제 hex 코드를 사용하세요.`,
       });
 
       const res = await fetch(
@@ -761,7 +763,7 @@ style: "modern" | "traditional" | "minimalist" | "rustic" | "contemporary"
       // 분석 실패 시 기본값 적용
       setExteriorStyle({
         wallColor: '#F0EBE1', roofColor: '#5C4B35', accentColor: '#7A6550',
-        roofType: 'gable', style: 'traditional', hasChimney: false,
+        groundColor: '#8AAE7A', roofType: 'gable', style: 'traditional', hasChimney: false,
       });
     } finally {
       setIsAnalyzingStyle(false);
@@ -889,7 +891,7 @@ style: "modern" | "traditional" | "minimalist" | "rustic" | "contemporary"
           <input
             className="chat-input"
             type="text"
-            placeholder="예: 따뜻한 햇살이 들어오는 우드톤의 거실을 원해요."
+            placeholder="메시지를 입력하세요."
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
@@ -938,16 +940,22 @@ style: "modern" | "traditional" | "minimalist" | "rustic" | "contemporary"
             padding: '16px',
             boxSizing: 'border-box',
           }}>
-            <img
-              src={displaySvgUrl}
-              alt="2D floor plan"
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'contain',
-                display: 'block',
-              }}
-            />
+            {!svgOverride && Object.keys(orderJson).length === 0 ? (
+              <div style={{ color: '#aaa', fontSize: '13px', letterSpacing: '1px', textAlign: 'center' }}>
+                대화를 통해 설계 요구사항을 모두 수집하면 도면이 생성됩니다.
+              </div>
+            ) : (
+              <img
+                src={displaySvgUrl}
+                alt="2D floor plan"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                  display: 'block',
+                }}
+              />
+            )}
           </div>
         </div>
 
