@@ -1,0 +1,5 @@
+theme: jekyll-theme-cayman
+title: AIchitect - 2026 Capstone Team 10
+description: 자연어 요구사항 기반의 설명 가능한 건축 도면 생성 AI 엔진
+url: "https://kookmin-sw.github.io"
+baseurl: "/2026-capstone-10"
