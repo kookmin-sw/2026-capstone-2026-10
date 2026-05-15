@@ -221,6 +221,18 @@ function App() {
   const [exteriorStyle, setExteriorStyle] = useState(null);
   const [isAnalyzingStyle, setIsAnalyzingStyle] = useState(false);
   const [planGeometry, setPlanGeometry] = useState(null);
+  const [layoutJson, setLayoutJson] = useState(null);
+  const [isDesignComplete, setIsDesignComplete] = useState(false);
+
+  // 방 추가/삭제 모드
+  const [isAddingRoom, setIsAddingRoom] = useState(false);
+  const [addRoomType, setAddRoomType] = useState('bathroom');
+  const [isAddingRoomLoading, setIsAddingRoomLoading] = useState(false);
+  const [isRemovingRoom, setIsRemovingRoom] = useState(false);
+  const [isRemovingRoomLoading, setIsRemovingRoomLoading] = useState(false);
+  const [isDesignConfirmed, setIsDesignConfirmed] = useState(false);
+  const [undoHistory, setUndoHistory] = useState([]);
+  const svgContainerRef = useRef(null);
 
   const chatEndRef = useRef(null);
 
@@ -454,13 +466,42 @@ required_spaces와 preferences는 빈 배열로 두세요.
 1개면 "거실", 2개 이상이면 "침실 2개" 형식.
 `;
 
-  const fetchLLMResponse = async (userMessage, history) => {
+  const buildModifyPrompt = (currentDesign) => `
+당신은 주택 설계 에이전트 Aichitect입니다. 사용자의 도면이 이미 생성되어 있습니다.
+
+[현재 도면 구성]
+공간: ${(currentDesign.required_spaces || []).join(', ')}
+선호사항: ${(currentDesign.preferences || []).join(', ')}
+
+사용자가 수정을 요청하면 자연스럽게 대화하면서 변경 사항을 파악하고, 확정되면 수정된 전체 구성을 반환하세요.
+건축 전문 용어 사용 금지. 친근하고 따뜻한 말투로 대화하세요.
+응답은 반드시 유효한 JSON 형식으로만 작성하세요.
+
+[응답 규칙]
+- 수정 내용이 명확하면 status: "modify" — 업데이트된 전체 required_spaces와 preferences를 반환
+- 아직 대화 중이면 status: "chatting"
+- 한 번에 하나의 질문만 하세요
+
+[응답 JSON 스키마]
+{
+  "status": "chatting | modify",
+  "reply_message": "사용자에게 할 말. 친근하고 자연스러운 말투로.",
+  "required_spaces": ["수정된 전체 공간 목록. 변경 없는 공간도 모두 포함"],
+  "preferences": ["수정된 전체 선호 목록"]
+}
+
+[required_spaces 규칙]
+사용 가능한 공간명: 거실, 침실, 주방, 욕실, 작업실, 서재, 계단, 복도
+1개면 "거실", 2개 이상이면 "침실 2개" 형식. 기존 공간도 빠짐없이 포함하세요.
+`;
+
+  const fetchLLMResponse = async (userMessage, history, systemPrompt = SYSTEM_PROMPT) => {
     try {
       const historyContext = history
         .map(chat => `${chat.sender === 'USER' ? '사용자' : 'AI'}: ${chat.text}`)
         .join('\n');
 
-      const fullPrompt = `${SYSTEM_PROMPT}\n\n[지금까지의 대화 내역]\n${historyContext}\n사용자: ${userMessage}\nAI:`;
+      const fullPrompt = `${systemPrompt}\n\n[지금까지의 대화 내역]\n${historyContext}\n사용자: ${userMessage}\nAI:`;
 
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`, {
         method: 'POST',
@@ -476,18 +517,25 @@ required_spaces와 preferences는 빈 배열로 두세요.
       const data = await response.json();
 
       if (data.error) {
-        console.error("API 응답 에러:", data.error.message);
-        return null;
+        const msg = data.error.message || JSON.stringify(data.error);
+        console.error("API 응답 에러:", msg);
+        throw new Error(`Gemini API 오류: ${msg}`);
       }
 
-      let jsonText = data.candidates[0].content.parts[0].text;
+      const candidate = data.candidates?.[0];
+      if (!candidate) {
+        const reason = data.promptFeedback?.blockReason || '응답 없음';
+        throw new Error(`응답 없음 (blockReason: ${reason})`);
+      }
+
+      let jsonText = candidate.content.parts[0].text;
       jsonText = jsonText.replace(/```json/g, "").replace(/```/g, "").trim();
 
       return JSON.parse(jsonText);
 
     } catch (error) {
       console.error("데이터 파싱 또는 통신 에러:", error);
-      return null;
+      throw error;
     }
   };
 
@@ -501,7 +549,18 @@ required_spaces와 preferences는 빈 배열로 두세요.
     setInputText("");
     setIsLoading(true);
 
-    const aiData = await fetchLLMResponse(userText, currentHistory);
+    const prompt = isDesignComplete ? buildModifyPrompt(orderJson) : SYSTEM_PROMPT;
+    let aiData = null;
+    try {
+      aiData = await fetchLLMResponse(userText, currentHistory, prompt);
+    } catch (fetchErr) {
+      setChatHistory((prev) => [
+        ...prev,
+        { sender: 'AI', text: `AI 연결 오류: ${fetchErr.message}\n\nAPI 키나 네트워크 상태를 확인해주세요.` }
+      ]);
+      setIsLoading(false);
+      return;
+    }
 
     if (aiData) {
       setChatHistory((prev) => [
@@ -509,19 +568,22 @@ required_spaces와 preferences는 빈 배열로 두세요.
         { sender: 'AI', text: aiData.reply_message || "응답을 생성했습니다." }
       ]);
 
-      if (aiData.status === 'complete') {
+      const shouldGenerate = aiData.status === 'complete' || aiData.status === 'modify';
+
+      if (shouldGenerate) {
         const pipelineInput = {
-          family_type: aiData.family_type || "",
-          housing_type: aiData.housing_type || "단독주택",
-          road_facing: aiData.road_facing || "남쪽",
-          required_spaces: aiData.required_spaces || [],
-          preferences: aiData.preferences || [],
+          family_type:      aiData.family_type      || orderJson.family_type      || "",
+          housing_type:     aiData.housing_type     || orderJson.housing_type     || "단독주택",
+          road_facing:      aiData.road_facing      || orderJson.road_facing      || "남쪽",
+          required_spaces:  aiData.required_spaces  || [],
+          preferences:      aiData.preferences      || [],
         };
         setOrderJson(pipelineInput);
 
+        const isModify = aiData.status === 'modify';
         setChatHistory((prev) => [
           ...prev,
-          { sender: 'AI', text: '도면을 생성하는 중입니다...' }
+          { sender: 'AI', text: isModify ? '도면을 수정하는 중입니다...' : '도면을 생성하는 중입니다...' }
         ]);
 
         try {
@@ -534,11 +596,18 @@ required_spaces와 preferences는 빈 배열로 두세요.
             const resData = await svgRes.json();
             setSvgOverride(resData.svg);
             setPlanGeometry(resData.plan_geometry);
+            if (resData.layout) setLayoutJson(resData.layout);
+            setUndoHistory([]);
+            setIsDesignComplete(true);
             setChatHistory((prev) => [
               ...prev,
-              { sender: 'AI', text: '2D 도면이 생성되었습니다! 3D 렌더링을 생성하는 중입니다...' }
+              {
+                sender: 'AI',
+                text: isModify
+                  ? '도면이 수정되었습니다! 추가로 바꾸고 싶은 부분이 있으면 언제든지 말씀해 주세요.\n\n마음에 드시면 도면 상단의 "도면 확정" 버튼을 눌러 3D 렌더링을 시작하세요.'
+                  : '2D 도면이 생성되었습니다! 마음에 드시면 도면 상단의 "도면 확정" 버튼을 눌러 3D 렌더링을 시작하세요.\n\n바꾸고 싶은 부분이 있으면 편하게 말씀해 주세요.'
+              }
             ]);
-            generate3dRender(pipelineInput, resData.svg, resData.plan_geometry);
           } else {
             const err = await svgRes.json();
             setChatHistory((prev) => [
@@ -553,14 +622,207 @@ required_spaces와 preferences는 빈 배열로 두세요.
           ]);
         }
       }
-    } else {
-      setChatHistory((prev) => [
-        ...prev,
-        { sender: 'AI', text: '데이터 처리에 실패했습니다. API 키나 네트워크 상태를 확인해주세요.' }
-      ]);
     }
 
     setIsLoading(false);
+  };
+
+  // ==========================================
+  // 방 추가 (클릭 위치 지정)
+  // ==========================================
+
+  const handleUndo = () => {
+    setUndoHistory(prev => {
+      if (!prev.length) return prev;
+      const last = prev[prev.length - 1];
+      setSvgOverride(last.svgOverride);
+      setPlanGeometry(last.planGeometry);
+      setLayoutJson(last.layoutJson);
+      return prev.slice(0, -1);
+    });
+  };
+
+  const ADD_ROOM_OPTIONS = [
+    { type: 'bathroom',  label: '욕실' },
+    { type: 'bedroom',   label: '침실' },
+    { type: 'workspace', label: '작업실' },
+    { type: 'kitchen',   label: '주방' },
+  ];
+
+  // SVG 클릭 좌표 → 도면 plan 좌표 변환
+  const svgClickToPlanCoords = (e) => {
+    const container = svgContainerRef.current;
+    if (!container || !planGeometry) return null;
+
+    // SVG 원본 크기 (DOMParser로 파싱 — 더 안전)
+    const { width: svgNatW, height: svgNatH } = getSvgDimensions(svgMarkup);
+    if (!svgNatW || !svgNatH) return null;
+
+    // 컨테이너 padding(16px)을 제외한 실제 이미지 영역 계산
+    const PAD = 16;
+    const rect = container.getBoundingClientRect();
+    const imgW = rect.width - 2 * PAD;
+    const imgH = rect.height - 2 * PAD;
+
+    // objectFit: contain 스케일 및 레터박스 오프셋
+    const scaleF = Math.min(imgW / svgNatW, imgH / svgNatH);
+    if (!scaleF || scaleF <= 0) return null;
+    const rendW = svgNatW * scaleF;
+    const rendH = svgNatH * scaleF;
+    const offX = (imgW - rendW) / 2;
+    const offY = (imgH - rendH) / 2;
+
+    // 클릭 좌표 → SVG 내부 좌표 (padding + letterbox 보정)
+    const svgX = (e.clientX - rect.left - PAD - offX) / scaleF;
+    const svgY = (e.clientY - rect.top  - PAD - offY) / scaleF;
+
+    // SVG 내부 좌표 → plan 좌표 (SCALE=80, PADDING=50, Y축 반전)
+    const SVG_SCALE = 80, SVG_PAD = 50;
+    const spaces = planGeometry.spaces || [];
+    if (!spaces.length) return null;
+    const minX = Math.min(...spaces.map(s => s.x));
+    const maxY = Math.max(...spaces.map(s => s.y + s.depth));
+
+    const planX = minX + (svgX - SVG_PAD) / SVG_SCALE;
+    const planY = maxY - (svgY - SVG_PAD) / SVG_SCALE;
+
+    return { x: planX, y: planY };
+  };
+
+  const handleSvgClickForRoom = async (e) => {
+    if (!isAddingRoom || isAddingRoomLoading) return;
+
+    // layoutJson이 없으면 planGeometry에서 재구성 (서버 구버전 호환)
+    let currentLayout = layoutJson;
+    if (!currentLayout) {
+      if (!planGeometry || !planGeometry.spaces?.length) {
+        alert('도면 정보가 없습니다. 도면을 다시 생성해 주세요.');
+        setIsAddingRoom(false);
+        return;
+      }
+      currentLayout = {
+        placements: planGeometry.spaces.map(s => ({
+          id: s.id,
+          space_type: s.space_type,
+          x: s.x,
+          y: s.y,
+          width: s.width,
+          depth: s.depth ?? s.height ?? 2,
+          zone: s.zone || 'private',
+          rotation: s.rotation || 0,
+        })),
+        meta: {
+          layout_type: 'flow_2d_v1',
+          road_facing: orderJson.road_facing || 'south',
+          access_edges: planGeometry.access_edges || [],
+        },
+      };
+    }
+
+    const coords = svgClickToPlanCoords(e);
+    if (!coords) return;
+
+    setIsAddingRoomLoading(true);
+    try {
+      const res = await fetch('http://localhost:8000/add-room', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          layout: currentLayout,
+          room_type: addRoomType,
+          target_x: coords.x,
+          target_y: coords.y,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUndoHistory(prev => [...prev, { svgOverride, planGeometry, layoutJson }]);
+        setSvgOverride(data.svg);
+        setPlanGeometry(data.plan_geometry);
+        setLayoutJson(data.layout);
+        setIsAddingRoom(false);
+      } else {
+        const err = await res.json();
+        alert(`방 추가 실패: ${err.detail}`);
+      }
+    } catch {
+      alert('서버에 연결할 수 없습니다.');
+    }
+    setIsAddingRoomLoading(false);
+  };
+
+  const handleSvgClickForDelete = async (e) => {
+    if (!isRemovingRoom || isRemovingRoomLoading) return;
+
+    const coords = svgClickToPlanCoords(e);
+    if (!coords) return;
+
+    const spaces = planGeometry?.spaces || [];
+    if (spaces.length <= 1) {
+      alert('마지막 방은 삭제할 수 없습니다.');
+      return;
+    }
+
+    // 클릭 위치를 포함하는 방 찾기
+    let targetId = null;
+    for (const space of spaces) {
+      if (coords.x >= space.x && coords.x <= space.x + space.width &&
+          coords.y >= space.y && coords.y <= space.y + space.depth) {
+        targetId = space.id;
+        break;
+      }
+    }
+    // 없으면 가장 가까운 방
+    if (!targetId) {
+      let minDist = Infinity;
+      for (const space of spaces) {
+        const cx = space.x + space.width / 2;
+        const cy = space.y + space.depth / 2;
+        const dist = (cx - coords.x) ** 2 + (cy - coords.y) ** 2;
+        if (dist < minDist) { minDist = dist; targetId = space.id; }
+      }
+    }
+    if (!targetId) return;
+
+    let currentLayout = layoutJson;
+    if (!currentLayout) {
+      if (!planGeometry?.spaces?.length) return;
+      currentLayout = {
+        placements: planGeometry.spaces.map(s => ({
+          id: s.id, space_type: s.space_type, x: s.x, y: s.y,
+          width: s.width, depth: s.depth ?? s.height ?? 2,
+          zone: s.zone || 'private', rotation: s.rotation || 0,
+        })),
+        meta: {
+          layout_type: 'flow_2d_v1',
+          road_facing: orderJson.road_facing || 'south',
+          access_edges: planGeometry.access_edges || [],
+        },
+      };
+    }
+
+    setIsRemovingRoomLoading(true);
+    try {
+      const res = await fetch('http://localhost:8000/delete-room', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ layout: currentLayout, room_id: targetId }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUndoHistory(prev => [...prev, { svgOverride, planGeometry, layoutJson }]);
+        setSvgOverride(data.svg);
+        setPlanGeometry(data.plan_geometry);
+        setLayoutJson(data.layout);
+        setIsRemovingRoom(false);
+      } else {
+        const err = await res.json();
+        alert(`방 삭제 실패: ${err.detail}`);
+      }
+    } catch {
+      alert('서버에 연결할 수 없습니다.');
+    }
+    setIsRemovingRoomLoading(false);
   };
 
   // ==========================================
@@ -851,7 +1113,21 @@ required_spaces와 preferences는 빈 배열로 두세요.
       <div className="panel">
         <div className="panel-header" style={{ position: 'relative' }}>
           <h1 className="panel-title">Aichitect</h1>
-          <p className="panel-subtitle">공간에 대한 아이디어를 대화로 구체화해보세요.</p>
+          <p className="panel-subtitle">
+            {isDesignComplete
+              ? '도면이 생성되었습니다. 수정하고 싶은 부분을 자유롭게 말씀해 주세요.'
+              : '공간에 대한 아이디어를 대화로 구체화해보세요.'}
+          </p>
+          {isDesignComplete && (
+            <span style={{
+              display: 'inline-block', marginTop: '6px',
+              padding: '2px 10px', borderRadius: '12px',
+              background: '#e8f5e9', color: '#2e7d32',
+              fontSize: '10px', letterSpacing: '0.8px', fontWeight: '600',
+            }}>
+              수정 모드
+            </span>
+          )}
           <button onClick={handleShare} className="export-btn share-btn" title="공유하기" style={{ position: 'absolute', top: '12px', right: '16px' }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="18" cy="5" r="3"></circle>
@@ -891,7 +1167,7 @@ required_spaces와 preferences는 빈 배열로 두세요.
           <input
             className="chat-input"
             type="text"
-            placeholder="메시지를 입력하세요."
+            placeholder={isDesignComplete ? "수정하고 싶은 부분을 말씀해 주세요." : "메시지를 입력하세요."}
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
@@ -923,23 +1199,117 @@ required_spaces와 preferences는 빈 배열로 두세요.
             </div>
             <span className="json-title">2D PLAN</span>
             <div className="export-toolbar">
+              {isDesignComplete && !isAddingRoom && !isRemovingRoom && (
+                <>
+                  <button onClick={() => setIsAddingRoom(true)} className="export-btn"
+                    style={{ background: '#e8f5e9', color: '#2e7d32', borderColor: '#c8e6c9', fontWeight: 600 }}>
+                    + 방 추가
+                  </button>
+                  <button onClick={() => setIsRemovingRoom(true)} className="export-btn"
+                    style={{ background: '#fde8e8', color: '#c62828', borderColor: '#f5c2c2', fontWeight: 600 }}>
+                    방 삭제
+                  </button>
+                  {undoHistory.length > 0 && (
+                    <button onClick={handleUndo} className="export-btn"
+                      style={{ background: '#f5f5f5', color: '#555', borderColor: '#ddd' }}>
+                      ↩ 되돌리기
+                    </button>
+                  )}
+                  {!isDesignConfirmed ? (
+                    <button
+                      onClick={() => { setIsDesignConfirmed(true); setRightTab('3d'); }}
+                      className="export-btn"
+                      style={{ background: '#1565c0', color: '#fff', borderColor: '#1565c0', fontWeight: 700 }}
+                    >
+                      도면 확정
+                    </button>
+                  ) : (
+                    <span style={{ fontSize: '11px', color: '#2e7d32', fontWeight: 700, letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      ✓ 확정됨
+                    </span>
+                  )}
+                </>
+              )}
+              {(isAddingRoom || isRemovingRoom) && (
+                <button
+                  onClick={() => { setIsAddingRoom(false); setIsRemovingRoom(false); }}
+                  className="export-btn"
+                  style={{ color: '#b71c1c' }}
+                >
+                  취소
+                </button>
+              )}
               <button onClick={downloadPNG} className="export-btn">PNG</button>
               <button onClick={downloadSVG} className="export-btn">SVG</button>
               <button onClick={downloadPDF} className="export-btn">PDF</button>
             </div>
           </div>
-          <div className="svg-content" style={{
-            flex: 1,
-            minHeight: 0,
-            overflow: 'hidden',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: '#ffffff',
-            borderRadius: '0 0 10px 10px',
-            padding: '16px',
-            boxSizing: 'border-box',
-          }}>
+
+          {/* 방 삭제 모드: 안내 바 */}
+          {isRemovingRoom && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              padding: '8px 16px', background: '#fff0f0',
+              borderBottom: '1px solid #ffd0d0',
+            }}>
+              <span style={{ fontSize: '11px', color: '#c62828', letterSpacing: '0.6px' }}>
+                삭제할 방을 클릭하세요 — 클릭 위치의 방이 도면에서 제거됩니다
+              </span>
+            </div>
+          )}
+
+          {/* 방 추가 모드: 방 종류 선택 바 */}
+          {isAddingRoom && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '8px',
+              padding: '8px 16px', background: '#f0f7ff',
+              borderBottom: '1px solid #d0e4ff', flexWrap: 'wrap',
+            }}>
+              <span style={{ fontSize: '11px', color: '#555', letterSpacing: '0.8px', whiteSpace: 'nowrap' }}>
+                추가할 방:
+              </span>
+              {ADD_ROOM_OPTIONS.map(opt => (
+                <button
+                  key={opt.type}
+                  onClick={() => setAddRoomType(opt.type)}
+                  style={{
+                    padding: '4px 12px', borderRadius: '14px', fontSize: '11px',
+                    border: addRoomType === opt.type ? '1.5px solid #1565c0' : '1px solid #ccc',
+                    background: addRoomType === opt.type ? '#1565c0' : '#fff',
+                    color: addRoomType === opt.type ? '#fff' : '#444',
+                    cursor: 'pointer', fontFamily: 'inherit', letterSpacing: '0.5px',
+                  }}
+                >
+                  {opt.label}
+                </button>
+              ))}
+              <span style={{ fontSize: '11px', color: '#888', marginLeft: '4px' }}>
+                → 도면에서 배치할 위치를 클릭하세요
+              </span>
+            </div>
+          )}
+
+          <div
+            ref={svgContainerRef}
+            className="svg-content"
+            onClick={isAddingRoom ? handleSvgClickForRoom : isRemovingRoom ? handleSvgClickForDelete : undefined}
+            style={{
+              flex: 1,
+              minHeight: 0,
+              overflow: 'hidden',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backgroundColor: '#ffffff',
+              borderRadius: '0 0 10px 10px',
+              padding: '16px',
+              boxSizing: 'border-box',
+              position: 'relative',
+              cursor: (isAddingRoom || isRemovingRoom)
+                ? ((isAddingRoomLoading || isRemovingRoomLoading) ? 'wait' : 'crosshair')
+                : 'default',
+            }}
+          >
             {!svgOverride && Object.keys(orderJson).length === 0 ? (
               <div style={{ color: '#aaa', fontSize: '13px', letterSpacing: '1px', textAlign: 'center' }}>
                 대화를 통해 설계 요구사항을 모두 수집하면 도면이 생성됩니다.
@@ -953,8 +1323,20 @@ required_spaces와 preferences는 빈 배열로 두세요.
                   height: '100%',
                   objectFit: 'contain',
                   display: 'block',
+                  pointerEvents: 'none',
                 }}
               />
+            )}
+            {/* 방 추가/삭제 로딩 오버레이 */}
+            {(isAddingRoomLoading || isRemovingRoomLoading) && (
+              <div style={{
+                position: 'absolute', inset: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'rgba(255,255,255,0.72)',
+                fontSize: '13px', color: '#555', letterSpacing: '1px',
+              }}>
+                {isAddingRoomLoading ? '방을 배치하는 중...' : '방을 삭제하는 중...'}
+              </div>
             )}
           </div>
         </div>
@@ -1000,8 +1382,17 @@ required_spaces와 preferences는 빈 배열로 두세요.
 
           {/* ── 3D RENDER 콘텐츠 ── */}
           {rightTab === '3d' && (
-            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', borderRadius: '0 0 10px 10px', overflow: 'hidden', padding: '16px', boxSizing: 'border-box' }}>
-              {is3dLoading ? (
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', borderRadius: '0 0 10px 10px', overflow: 'hidden', padding: '16px', boxSizing: 'border-box', position: 'relative' }}>
+              {!isDesignConfirmed ? (
+                <div style={{ textAlign: 'center', color: '#aaa', lineHeight: 2 }}>
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.5" style={{ display: 'block', margin: '0 auto 12px' }}>
+                    <rect x="3" y="11" width="18" height="11" rx="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                  <div style={{ fontSize: '13px', letterSpacing: '0.5px' }}>도면을 확정한 후 3D 렌더링을 사용할 수 있습니다.</div>
+                  <div style={{ fontSize: '11px', marginTop: '6px', color: '#bbb' }}>2D 도면 상단의 "도면 확정" 버튼을 눌러주세요.</div>
+                </div>
+              ) : is3dLoading ? (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', width: '60%' }}>
                   <div style={{ color: '#666', fontSize: '13px', letterSpacing: '1.5px' }}>
                     3D RENDERING... {Math.round(renderProgress)}%
@@ -1011,9 +1402,27 @@ required_spaces와 preferences는 빈 배열로 두세요.
                   </div>
                 </div>
               ) : image3dUrl ? (
-                <img src={image3dUrl} alt="3D render" style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
+                <>
+                  <img src={image3dUrl} alt="3D render" style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
+                  <button
+                    onClick={() => generate3dRender(orderJson, svgMarkup, planGeometry)}
+                    style={{ position: 'absolute', bottom: '16px', right: '16px', padding: '6px 16px', background: '#333', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', letterSpacing: '0.8px' }}
+                  >
+                    다시 렌더링
+                  </button>
+                </>
               ) : (
-                <div style={{ color: '#aaa', fontSize: '13px', letterSpacing: '1px' }}>2D 도면이 완성되면 3D 렌더링이 생성됩니다.</div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ color: '#888', fontSize: '13px', marginBottom: '20px', letterSpacing: '0.5px' }}>
+                    도면이 확정되었습니다.<br />3D 렌더링을 시작하세요.
+                  </div>
+                  <button
+                    onClick={() => generate3dRender(orderJson, svgMarkup, planGeometry)}
+                    style={{ padding: '10px 32px', background: '#1565c0', color: '#fff', border: 'none', borderRadius: '8px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', letterSpacing: '1px' }}
+                  >
+                    렌더링하기
+                  </button>
+                </div>
               )}
             </div>
           )}
@@ -1021,8 +1430,22 @@ required_spaces와 preferences는 빈 배열로 두세요.
           {/* ── 3D EXTERIOR 콘텐츠 ── */}
           {rightTab === 'exterior' && (
             <>
+              {/* 도면 미확정 — 잠금 */}
+              {!isDesignConfirmed && (
+                <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', borderRadius: '0 0 10px 10px' }}>
+                  <div style={{ textAlign: 'center', color: '#aaa', lineHeight: 2 }}>
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="1.5" style={{ display: 'block', margin: '0 auto 12px' }}>
+                      <rect x="3" y="11" width="18" height="11" rx="2" />
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                    </svg>
+                    <div style={{ fontSize: '13px', letterSpacing: '0.5px' }}>도면을 확정한 후 3D 외관을 사용할 수 있습니다.</div>
+                    <div style={{ fontSize: '11px', marginTop: '6px', color: '#bbb' }}>2D 도면 상단의 "도면 확정" 버튼을 눌러주세요.</div>
+                  </div>
+                </div>
+              )}
+
               {/* 도면 미완성 */}
-              {!svgOverride && (
+              {isDesignConfirmed && !svgOverride && (
                 <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#ffffff', borderRadius: '0 0 10px 10px' }}>
                   <div style={{ color: '#aaa', fontSize: '13px', letterSpacing: '1px', textAlign: 'center', lineHeight: 2 }}>
                     2D 도면이 완성되면<br />레퍼런스 이미지를 업로드할 수 있습니다.
@@ -1031,7 +1454,7 @@ required_spaces와 preferences는 빈 배열로 두세요.
               )}
 
               {/* 레퍼런스 업로드 UI */}
-              {svgOverride && !exteriorStyle && (
+              {isDesignConfirmed && svgOverride && !exteriorStyle && (
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '22px', padding: '20px', backgroundColor: '#ffffff', borderRadius: '0 0 10px 10px' }}>
                   <div style={{ color: '#8b949e', fontSize: '11px', letterSpacing: '2px', textAlign: 'center' }}>
                     REFERENCE IMAGES — 원하는 외관 스타일의 이미지를 업로드하세요
@@ -1073,7 +1496,7 @@ required_spaces와 preferences는 빈 배열로 두세요.
               )}
 
               {/* Three.js 뷰어 */}
-              {svgOverride && exteriorStyle && (
+              {isDesignConfirmed && svgOverride && exteriorStyle && (
                 <div style={{ flex: 1, position: 'relative', overflow: 'hidden', borderRadius: '0 0 10px 10px' }}>
                   <ThreeExteriorViewer
                     key={JSON.stringify(exteriorStyle) + svgOverride.length}

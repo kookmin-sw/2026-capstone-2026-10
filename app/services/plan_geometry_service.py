@@ -59,6 +59,10 @@ ALLOWED_INTERNAL_CONNECTIONS = {
     frozenset(("master_bedroom", "bathroom")),
     frozenset(("master_bedroom", "child_bedroom")),
     frozenset(("child_bedroom", "bathroom")),
+    # bathroom reachable from any non-entrance zone
+    frozenset(("living_room", "bathroom")),
+    frozenset(("kitchen", "bathroom")),
+    frozenset(("workspace", "bathroom")),
     frozenset(("connector", "entrance")),
     frozenset(("connector", "living_room")),
     frozenset(("connector", "kitchen")),
@@ -763,12 +767,12 @@ def should_make_inner_opening(wall: dict[str, Any]) -> bool:
     if is_blocked_internal_opening_pair(space_type_a, space_type_b):
         return False
 
-    if not is_flow_allowed_by_zone(space_type_a, space_type_b):
-        return False
-
-    # Explicitly allowed pairs always get openings, even if one side is a service edge
+    # Explicitly allowed pairs always get openings, regardless of zone or service edges
     if is_allowed_internal_connection(space_type_a, space_type_b):
         return True
+
+    if not is_flow_allowed_by_zone(space_type_a, space_type_b):
+        return False
 
     if (
         edge_type_a in BLOCKING_INTERNAL_EDGE_TYPES

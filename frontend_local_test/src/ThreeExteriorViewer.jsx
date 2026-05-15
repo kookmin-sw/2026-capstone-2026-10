@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { OrbitControls }      from 'three/addons/controls/OrbitControls.js';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+import { GLTFExporter }        from 'three/addons/exporters/GLTFExporter.js';
 
 // ─── Constants ────────────────────────────────────────────
 const SVG_SCALE   = 80;
@@ -361,6 +362,30 @@ export default function ThreeExteriorViewer({ svgString, orderJson, styleData, p
     setIsInterior(false);
   };
 
+  const [isExporting, setIsExporting] = useState(false);
+
+  const downloadGLB = () => {
+    const scene = threeRef.current?.scene;
+    if (!scene) return;
+    setIsExporting(true);
+    const exporter = new GLTFExporter();
+    exporter.parse(
+      scene,
+      (glb) => {
+        const blob = new Blob([glb], { type: 'application/octet-stream' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = 'AIchitect_model.glb';
+        a.click();
+        URL.revokeObjectURL(url);
+        setIsExporting(false);
+      },
+      (err) => { console.error('GLB export error:', err); setIsExporting(false); },
+      { binary: true }
+    );
+  };
+
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       {/* Three.js canvas */}
@@ -370,14 +395,31 @@ export default function ThreeExteriorViewer({ svgString, orderJson, styleData, p
         style={{ width: '100%', height: '100%', cursor: isInterior && !isLocked ? 'pointer' : isInterior ? 'none' : 'grab' }}
       />
 
-      {/* ── 외부 뷰: 내부 진입 버튼 ── */}
+      {/* ── 외부 뷰: 내부 진입 + 모델 다운로드 버튼 ── */}
       {!isInterior && (
-        <button
-          onClick={() => setIsInterior(true)}
-          style={btnStyle({ dark: false, bottom: '44px', left: '50%', transform: 'translateX(-50%)' })}
-        >
-          내부 진입 →
-        </button>
+        <div style={{
+          position: 'absolute', bottom: '44px', left: '50%',
+          transform: 'translateX(-50%)',
+          display: 'flex', gap: '10px', alignItems: 'center',
+        }}>
+          <button
+            onClick={() => setIsInterior(true)}
+            style={{ ...btnStyle({ dark: false }), position: 'static' }}
+          >
+            내부 진입 →
+          </button>
+          <button
+            onClick={downloadGLB}
+            disabled={isExporting}
+            style={{
+              ...btnStyle({ dark: false }),
+              position: 'static',
+              opacity: isExporting ? 0.55 : 1,
+            }}
+          >
+            {isExporting ? '변환 중…' : '↓ 3D 모델 받기'}
+          </button>
+        </div>
       )}
 
       {/* ── 내부, 포인터 미잠금: 안내 오버레이 ── */}

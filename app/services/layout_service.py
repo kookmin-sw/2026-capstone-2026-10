@@ -644,7 +644,26 @@ def placement_candidate_score(
     if existing_living is not None and block_def.get("zone") == "private":
         score -= distance_between(candidate, existing_living) * 0.35
 
+    # Penalise placements where the shared wall with the anchor is too narrow
+    # for a door opening (needs > 1.0 m usable = total - 2*0.3 m margin).
+    anchor_overlap = _anchor_wall_overlap(x, y, width, depth, anchor, side)
+    if anchor_overlap <= 1.0:
+        score -= 20
+
     return score
+
+
+def _anchor_wall_overlap(
+    x: int, y: int, width: int, depth: int,
+    anchor: dict[str, Any], side: str,
+) -> float:
+    if tangent_axis(side) == "x":
+        lo = max(x, anchor["x"])
+        hi = min(x + width, anchor["x"] + anchor["width"])
+    else:
+        lo = max(y, anchor["y"])
+        hi = min(y + depth, anchor["y"] + anchor["depth"])
+    return max(0.0, hi - lo)
 
 
 def candidate_offsets(anchor: dict[str, Any], block_def: dict[str, Any], side: str) -> list[int]:
@@ -2480,3 +2499,143 @@ def generate_zoned_layout_from_rules(rules: dict[str, Any]) -> dict[str, Any]:
 
 def generate_layout_from_rules(rules: dict[str, Any]) -> dict[str, Any]:
     return generate_zoned_layout_from_rules(rules)
+
+
+def add_room_to_layout(
+    layout: dict[str, Any],
+    room_type: str,
+    target_x: float,
+    target_y: float,
+) -> dict[str, Any]:
+    """사용자가 클릭한 위치(target_x, target_y) 근처에 room_type 방을 추가한다.
+
+    기존 레이아웃을 건드리지 않고 새 방 하나만 붙인다.
+    """
+    placements = [dict(p) for p in layout["placements"]]
+    access_edges = list(layout.get("meta", {}).get("access_edges", []))
+
+    block_def = load_block_definition(room_type)
+
+    # 기존 ID에서 충돌 없는 새 인덱스 계산
+    max_idx = -1
+    for p in placements:
+        tail = p["id"].rsplit("_", 1)[-1]
+        if tail.lstrip("-").isdigit():
+            max_idx = max(max_idx, int(tail))
+    new_idx = max_idx + 1
+
+    # 클릭 위치에서 가장 가까운 기존 방을 앵커로 선택
+    def sq_dist(p: dict[str, Any]) -> float:
+        cx = p["x"] + p["width"] / 2
+        cy = p["y"] + p["depth"] / 2
+        return (cx - target_x) ** 2 + (cy - target_y) ** 2
+
+    anchor = min(placements, key=sq_dist)
+
+    # 앵커 중심에서 클릭 방향으로 배치 면(side) 우선순위 결정
+    acx = anchor["x"] + anchor["width"] / 2
+    acy = anchor["y"] + anchor["depth"] / 2
+    dx, dy = target_x - acx, target_y - acy
+
+    if abs(dx) >= abs(dy):
+        preferred = ["east", "west", "south", "north"] if dx >= 0 else ["west", "east", "south", "north"]
+    else:
+        preferred = ["south", "north", "east", "west"] if dy >= 0 else ["north", "south", "east", "west"]
+
+    placed_x: int | None = None
+    placed_y: int | None = None
+    placed_rot: int = 0
+
+    for side in preferred:
+        for rotation in rotation_options(block_def):
+            variant = block_variant(block_def, rotation)
+            offsets = sorted(candidate_offsets(anchor, variant, side), key=abs)
+            for offset in offsets:
+                x, y = position_on_side(anchor, variant, side, offset)
+                if not placement_overlaps_existing(x, y, variant["width"], variant["depth"], placements):
+                    placed_x, placed_y, placed_rot = x, y, rotation
+                    break
+            if placed_x is not None:
+                break
+        if placed_x is not None:
+            break
+
+    if placed_x is None:
+        # 마지막 수단: 클릭 좌표 근방에 강제 배치
+        placed_x, placed_y, placed_rot = int(round(target_x)), int(round(target_y)), 0
+
+    new_placement = make_placement(new_idx, room_type, block_def, placed_x, placed_y, rotation=placed_rot)
+    placements.append(new_placement)
+
+    edge_type = "door"
+    access_edges.append(make_access_edge(anchor["id"], new_placement["id"], edge_type))
+
+    return {
+        "placements": placements,
+        "meta": {
+            **layout.get("meta", {}),
+            "access_edges": normalize_access_edges(access_edges),
+        },
+    }
+
+
+def delete_room_from_layout(
+    layout: dict[str, Any],
+    room_id: str,
+) -> dict[str, Any]:
+    """지정된 room_id의 방을 레이아웃에서 제거한다.
+
+    삭제 후 Entrance로부터 단절된 방들도 함께 제거한다.
+    """
+    if not any(p["id"] == room_id for p in layout["placements"]):
+        raise ValueError(f"Room '{room_id}' not found in layout")
+
+    # 1. 삭제 대상 방 제거
+    remaining = [p for p in layout["placements"] if p["id"] != room_id]
+
+    # 2. 해당 방에 연결된 엣지 제거
+    all_edges = layout.get("meta", {}).get("access_edges", [])
+    remaining_edges = [
+        e for e in all_edges
+        if e.get("from") != room_id and e.get("to") != room_id
+    ]
+
+    # 3. Entrance 방 ID 찾기 (메인 클러스터의 기준)
+    entrance_id: str | None = None
+    for p in remaining:
+        stype = p.get("space_type", "").lower()
+        if stype == "entrance" or p["id"].startswith("entrance"):
+            entrance_id = p["id"]
+            break
+
+    # 4. Entrance가 존재하면 BFS로 연결된 방만 유지
+    if entrance_id:
+        adjacency: dict[str, set[str]] = {p["id"]: set() for p in remaining}
+        for e in remaining_edges:
+            frm, to = e.get("from"), e.get("to")
+            if frm in adjacency and to in adjacency:
+                adjacency[frm].add(to)
+                adjacency[to].add(frm)
+
+        reachable: set[str] = set()
+        queue = [entrance_id]
+        while queue:
+            node = queue.pop()
+            if node in reachable:
+                continue
+            reachable.add(node)
+            queue.extend(adjacency.get(node, set()) - reachable)
+
+        remaining = [p for p in remaining if p["id"] in reachable]
+        remaining_edges = [
+            e for e in remaining_edges
+            if e.get("from") in reachable and e.get("to") in reachable
+        ]
+
+    return {
+        "placements": remaining,
+        "meta": {
+            **layout.get("meta", {}),
+            "access_edges": normalize_access_edges(remaining_edges),
+        },
+    }

@@ -21,7 +21,7 @@ from pydantic import BaseModel
 
 from app.services.normalize_service import normalize_llm_json, validate_internal_format
 from app.services.rules_service import generate_placement_rules
-from app.services.layout_service import generate_layout_from_rules
+from app.services.layout_service import generate_layout_from_rules, add_room_to_layout, delete_room_from_layout
 from app.services.layout_postprocess_service import compact_layout_data
 from app.services.plan_geometry_service import build_plan_geometry
 from app.services.visualize2d_service import build_svg
@@ -31,7 +31,7 @@ app = FastAPI(title="AIchitect API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5174", "http://127.0.0.1:5174"],
     allow_methods=["POST", "OPTIONS"],
     allow_headers=["Content-Type"],
 )
@@ -56,6 +56,42 @@ def generate_svg(body: RawInput) -> dict:
         layout = compact_layout_data(layout)
         plan_geometry = build_plan_geometry(layout)
         svg = build_svg(plan_geometry)
-        return {"svg": svg, "plan_geometry": plan_geometry}
+        return {"svg": svg, "plan_geometry": plan_geometry, "layout": layout}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+class AddRoomInput(BaseModel):
+    layout: dict
+    room_type: str
+    target_x: float
+    target_y: float
+
+
+@app.post("/add-room")
+def add_room(body: AddRoomInput) -> dict:
+    try:
+        layout = add_room_to_layout(body.layout, body.room_type, body.target_x, body.target_y)
+        layout = compact_layout_data(layout)
+        plan_geometry = build_plan_geometry(layout)
+        svg = build_svg(plan_geometry)
+        return {"svg": svg, "plan_geometry": plan_geometry, "layout": layout}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+class DeleteRoomInput(BaseModel):
+    layout: dict
+    room_id: str
+
+
+@app.post("/delete-room")
+def delete_room_endpoint(body: DeleteRoomInput) -> dict:
+    try:
+        layout = delete_room_from_layout(body.layout, body.room_id)
+        layout = compact_layout_data(layout)
+        plan_geometry = build_plan_geometry(layout)
+        svg = build_svg(plan_geometry)
+        return {"svg": svg, "plan_geometry": plan_geometry, "layout": layout}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
